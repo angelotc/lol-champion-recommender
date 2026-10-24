@@ -14,6 +14,7 @@ import asyncio
 import ctypes
 import json
 import logging
+import os
 import threading
 import time
 from ctypes import wintypes as w
@@ -31,6 +32,8 @@ from scoring import LANES
 TITLE = "League Pick Helper"
 TIER_NAMES = {"master_plus": "Master+", "emerald_plus": "Emerald+", "platinum_plus": "Platinum+"}
 MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT, WM_HOTKEY = 0x2, 0x4, 0x4000, 0x0312
+CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT = 0, 1, 2
+HANDLER_ROUTINE = ctypes.WINFUNCTYPE(w.BOOL, w.DWORD)
 
 log = logging.getLogger("app")
 
@@ -221,7 +224,22 @@ class App:
             width=300, height=800, frameless=True, on_top=True, focus=False,
             resizable=False, hidden=True, background_color="#010a13",
         )
+        self._install_quit_handler()
         webview.start(self.boot)
+        os._exit(0)  # worker threads may be blocked in network/GetMessage calls
+
+    def _install_quit_handler(self) -> None:
+        """Ctrl+C / closing the terminal quits. Python's SIGINT handler can't run while the main
+        thread sits in the native window loop, but Windows calls this on its own thread."""
+        @HANDLER_ROUTINE
+        def on_console_event(event: int) -> bool:
+            if event in (CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT):
+                self.window.destroy()
+                return True
+            return False
+
+        self._quit_handler = on_console_event  # keep a reference so ctypes doesn't free it
+        ctypes.windll.kernel32.SetConsoleCtrlHandler(on_console_event, True)
 
 
 def main() -> None:
