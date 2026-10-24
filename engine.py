@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -9,7 +10,9 @@ from config import Config
 from lcu import DraftState
 from data.fetch import Fetcher
 from data.lolalytics import Lolalytics
-from scoring import LANES, ChampStats, Recommendation, assign_enemy_lanes, infer_enemy_lanes, recommend
+from scoring import (
+    LANES, ChampStats, Recommendation, Threat, assign_enemy_lanes, ban_threats, infer_enemy_lanes, recommend,
+)
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +26,14 @@ class Evaluation:
     enemy_rates: dict[int, dict[str, float]] = field(default_factory=dict)  # lane play rates, %
 
 
+@dataclass
+class BanEvaluation:
+    draft: DraftState
+    role: str
+    picks: list[int]       # your likely picks the threats are measured against
+    threats: list[Threat]
+
+
 class Recommender:
     def __init__(self, cfg: Config, fetcher: Fetcher | None = None):
         self.cfg = cfg
@@ -30,6 +41,8 @@ class Recommender:
         self.lola = Lolalytics(cfg.tier, cfg.days, fetcher)
         self.pools: dict[tuple[str, str], dict[int, ChampStats]] = {}  # (tier, role) -> pool
         self.progress: Callable[[str], None] = lambda _: None
+        self._pool_locks: dict[tuple[str, str], threading.Lock] = {}
+        self._locks_lock = threading.Lock()
 
     @staticmethod
     def role_for(draft: DraftState) -> str | None:
@@ -44,23 +57,37 @@ class Recommender:
     def tier(self, value: str) -> None:
         self.lola.tier = value
 
-    def pool(self, role: str) -> dict[int, ChampStats]:
-        """Stats at the current tier for every champion played enough in the role, loaded on first use."""
-        key = (self.tier, role)
-        if key not in self.pools:
-            ids = self.candidates(role)
-            pool: dict[int, ChampStats] = {}
-            label = f"{role} stats ({self.tier}, {self.cfg.days} days)"
-            self.progress(f"Loading {label}: 0/{len(ids)}...")
-            jobs = self.lola.fetch.map(lambda c: (c, self.lola.champ_stats(self.champs.slug(c), role)), ids)
-            for i, (cid, s) in enumerate(jobs, 1):
-                self.progress(f"Loading {label}: {i}/{len(ids)}...")
-                if s is None:
-                    log.warning("no lolalytics data for %s in %s at %s", self.champs.slug(cid), role, self.tier)
-                else:
-                    pool[s.champion_id] = s
-            self.pools[key] = pool
+    def has_pool(self, role: str, tier: str | None = None) -> bool:
+        return (tier or self.tier, role) in self.pools
+
+    def pool(self, role: str, progress: Callable[[str], None] | None = None,
+             tier: str | None = None) -> dict[int, ChampStats]:
+        """Stats at the tier (default: current) for every champion played enough in the role,
+        loaded on first use. Concurrent callers for the same role and tier wait for one load."""
+        key = (tier or self.tier, role)
+        if key in self.pools:
+            return self.pools[key]
+        with self._locks_lock:
+            lock = self._pool_locks.setdefault(key, threading.Lock())
+        with lock:
+            if key not in self.pools:
+                self.pools[key] = self._load_pool(role, key[0], progress or self.progress)
         return self.pools[key]
+
+    def _load_pool(self, role: str, tier: str, progress: Callable[[str], None]) -> dict[int, ChampStats]:
+        lola = self.lola if tier == self.tier else self.lola.at_tier(tier)
+        ids = self.candidates(role)
+        pool: dict[int, ChampStats] = {}
+        label = f"{role} stats ({tier}, {self.cfg.days} days)"
+        progress(f"Loading {label}: 0/{len(ids)}...")
+        jobs = lola.fetch.map(lambda c: (c, lola.champ_stats(self.champs.slug(c), role)), ids)
+        for i, (cid, s) in enumerate(jobs, 1):
+            progress(f"Loading {label}: {i}/{len(ids)}...")
+            if s is None:
+                log.warning("no lolalytics data for %s in %s at %s", self.champs.slug(cid), role, tier)
+            else:
+                pool[s.champion_id] = s
+        return pool
 
     def candidates(self, role: str) -> list[int]:
         """Champions with at least min_pick_rate % pick rate in the role on lolalytics' tier list."""
@@ -100,3 +127,21 @@ class Recommender:
         )
         lanes = {cid: lane for lane, (cid, _) in allies.items()} | {cid: lane for lane, cid in enemies.items()}
         return Evaluation(draft, role, recs[: self.cfg.top_n], lanes, rates)
+
+    def bans(self, draft: DraftState, pickable: set[int] | None = None) -> BanEvaluation:
+        """Enemy champions worth banning, measured against your likely picks for this draft."""
+        role = self.role_for(draft)
+        if role is None:
+            raise ValueError("no assigned role")
+        ev = self.evaluate(draft, pickable)
+        pool = self.pool(role)
+        picks = [pool[r.champion_id] for r in ev.recs[: self.cfg.ban_vs_top]]
+        mine = {s.champion_id for s in draft.allies if s.champion_id}  # your team's picks and hovers
+        exclude = draft.bans | draft.picked | mine | {r.champion_id for r in ev.recs[:3]}
+        rows = {lane: self.lola.tier_list(lane) for lane in LANES}
+        known = set(self.champs.all_ids())
+        threats = [
+            t for t in ban_threats(picks, rows, self.cfg.weights_for(role), self.cfg.k, exclude)
+            if t.champion_id in known
+        ]
+        return BanEvaluation(draft, role, [p.champion_id for p in picks], threats[: self.cfg.ban_count])

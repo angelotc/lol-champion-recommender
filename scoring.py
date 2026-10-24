@@ -103,3 +103,60 @@ def assign_enemy_lanes(
             pinned[lane] = cid
     rest = [c for c in enemy_ids if c not in pinned.values()]
     return pinned | infer_enemy_lanes(rest, lane_rates, tuple(l for l in LANES if l not in pinned))
+
+
+@dataclass
+class Threat:
+    champion_id: int
+    lane: str                 # the enemy lane where it hurts you most
+    score: float              # expected harm: P(you face it) x (matchup harm + its own strength)
+    pick_rate: float          # % of games it's picked, summed over the lanes considered
+    strength: float           # its own shrunk win rate delta, in that lane
+    against: list[Contribution] = field(default_factory=list)  # how it does vs each of your picks
+
+
+def ban_threats(
+    picks: list[ChampStats],
+    enemy_rows: dict[str, dict[int, dict]],
+    weights: dict,
+    k: float,
+    exclude: set[int] = frozenset(),
+    min_pick_rate: float = 0.5,
+) -> list[Threat]:
+    """Rank enemy champions worth banning, given the picks you're likely to make.
+
+    enemy_rows: lane -> {champion id: tier list row with pr (%), games and avgWrDelta} for lanes the
+    enemy can play. For each lane a champion plays, its threat is pick rate (how likely you face it)
+    times the lane-weighted harm it does: how much worse your picks do against it (matchup deltas,
+    shrunk), plus how strong it is on its own. A champion's lanes are summed.
+    """
+    threats: dict[int, Threat] = {}
+    best: dict[int, float] = {}
+    for lane, rows in enemy_rows.items():
+        lw = weights.get("enemy", {}).get(lane, 0)
+        if lw <= 0:
+            continue
+        for cid, row in rows.items():
+            pr = float(row.get("pr") or 0)
+            if cid in exclude or pr < min_pick_rate:
+                continue
+            against = []
+            for s in picks:
+                pair = s.matchups.get(lane, {}).get(cid)
+                if pair is None:
+                    continue
+                delta = pair.wr - s.wr if pair.delta is None else pair.delta
+                against.append(Contribution("vs", s.champion_id, lane, delta, pair.games, shrink(delta, pair.games, k) * lw))
+            harm = -sum(c.weighted for c in against) / len(picks) if picks else 0.0
+            strength = shrink(float(row.get("avgWrDelta") or 0), int(row.get("games") or 0), k)
+            lane_score = pr / 100 * (harm + strength * lw)
+            t = threats.get(cid)
+            if t is None:
+                t = threats[cid] = Threat(cid, lane, 0.0, 0.0, strength, against)
+                best[cid] = lane_score
+            elif lane_score > best[cid]:
+                t.lane, t.strength, t.against = lane, strength, against
+                best[cid] = lane_score
+            t.score += lane_score
+            t.pick_rate += pr
+    return sorted(threats.values(), key=lambda t: t.score, reverse=True)

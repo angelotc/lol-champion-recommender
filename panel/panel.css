@@ -116,5 +116,19 @@ body.overlay .tiers{padding:.1875rem .5rem}
 .locked .ico{width:1.25rem;height:1.25rem}
 .locked .sub2{color:var(--muted);margin-left:auto;font-size:.625rem}
 .rec.mine{box-shadow:inset 3px 0 0 var(--gold)}
+/* tabs (ban phase: bans | picks) */
+.tabs{display:flex;gap:2px;padding:.3125rem .625rem 0;flex:none}
+.tabs button{flex:1;background:none;border:0;border-bottom:2px solid var(--line);color:var(--muted);font:inherit;font-size:.6875rem;
+  font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.25rem 0;cursor:pointer}
+.tabs button:hover{color:var(--gold2)}
+.tabs button.on{color:var(--gold);border-bottom-color:var(--gold)}
+/* status detail line */
+.sdetail{font-size:.6875rem;color:var(--dim);max-width:90%}
+/* bans view */
+.vsline{display:flex;align-items:center;gap:.25rem;font-size:.625rem;color:var(--muted);flex-wrap:wrap}
+.vsline .ico{width:1.125rem;height:1.125rem;border-radius:3px}
+.threat .score{font-size:1.0625rem}
+.threat .lanechip{font-size:.5625rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-left:.25rem;font-weight:400}
+.threat .meta{font-size:.625rem;color:var(--dim);margin-top:1px}
 /* view router */
 .view{flex:1;min-height:0;display:flex;flex-direction:column}

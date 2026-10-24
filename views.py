@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from data.champions import Champions
-from engine import Evaluation
+from engine import BanEvaluation, Evaluation
 from scoring import LANES
 from state import Stage
 
@@ -74,6 +74,33 @@ def picks(head: dict, ev: Evaluation, champs: Champions, enemy_lanes: dict[int, 
                 ],
             }
             for r in ev.recs
+        ],
+    }
+
+
+def bans(head: dict, bev: BanEvaluation, champs: Champions) -> dict:
+    champ = lambda cid: {"name": champs.name(cid), "icon": champs.icon_url(cid)}
+    d = bev.draft
+    return head | {
+        "view": "bans",
+        "status": "active",
+        "message": "",
+        "allies": [
+            champ(s.champion_id) | {"lane": s.position, "tentative": s.tentative, "is_me": s.is_me}
+            for s in d.allies if s.champion_id
+        ],
+        "bans": [champ(c) for c in sorted(d.bans)],
+        "picks": [champ(c) for c in bev.picks],
+        "threats": [
+            champ(t.champion_id) | {
+                "id": t.champion_id, "lane": t.lane, "score": round(t.score, 3),
+                "pick_rate": round(t.pick_rate, 1), "strength": round(t.strength, 2),
+                "against": [
+                    champ(c.champion_id) | {"delta": round(c.delta, 2), "games": c.games, "weighted": round(c.weighted, 2)}
+                    for c in sorted(t.against, key=lambda c: c.weighted)
+                ],
+            }
+            for t in bev.threats
         ],
     }
 

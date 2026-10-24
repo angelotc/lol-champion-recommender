@@ -153,3 +153,23 @@ def test_manual_enemy_lane_overrides_inference():
 def test_manual_enemy_lane_ignores_stale_and_bad_entries():
     rates = {1: {"middle": 60}, 2: {"bottom": 60}}
     assert assign_enemy_lanes([1, 2], rates, {9: "middle", 2: "nowhere"}) == {"middle": 1, "bottom": 2}
+
+
+def test_ban_threats_weigh_likelihood_and_harm():
+    from scoring import ban_threats
+    w = {"enemy": {"support": 1.0, "bottom": 1.0, "top": 0.3}}
+    leona = ChampStats(1, "support", 50.0, 10000, matchups={
+        "support": {10: Pair(46.0, 2000, -4.0), 11: Pair(46.0, 2000, -4.0)},
+        "bottom": {20: Pair(52.0, 2000, 2.0)},
+    })
+    rows = {
+        "support": {10: {"pr": 10, "games": 5000, "avgWrDelta": 0}, 11: {"pr": 1, "games": 500, "avgWrDelta": 0}},
+        "bottom": {20: {"pr": 10, "games": 5000, "avgWrDelta": 0}},
+        "top": {30: {"pr": 10, "games": 5000, "avgWrDelta": 3.0}},
+    }
+    t = ban_threats([leona], rows, w, k=500)
+    order = [x.champion_id for x in t]
+    assert order[0] == 10            # beats your pick and is picked often
+    assert order.index(11) > order.index(10)  # same harm, rarely picked
+    assert t[-1].champion_id == 20 and t[-1].score < 0  # you beat it: not worth a ban
+    assert ban_threats([leona], rows, w, k=500, exclude={10})[0].champion_id != 10

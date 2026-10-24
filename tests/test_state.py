@@ -106,3 +106,41 @@ def test_controller_status_views():
     ctl = Controller(Config(), pushed.append)
     ctl.on_phase("Matchmaking")
     assert pushed[-1]["view"] == "status" and "queue" in pushed[-1]["message"].lower()
+
+
+class StubBanRec(StubRec):
+    def bans(self, draft, pickable=None):
+        from engine import BanEvaluation
+        from scoring import Threat
+        return BanEvaluation(draft, draft.my_position, [412], [Threat(555, "bottom", 0.3, 10.0, 1.0, [])])
+
+
+def test_ban_phase_shows_bans_then_your_tab_choice():
+    pushed = []
+    ctl = Controller(Config(), pushed.append)
+    ctl.rec = StubBanRec()
+    ctl.on_phase("ChampSelect")
+    ctl.on_session(session(ban_in_progress=True))
+    assert pushed[-1]["view"] == "bans" and pushed[-1]["tabs"] == ["bans", "picks"]
+    assert pushed[-1]["threats"][0]["id"] == 555
+    ctl.set_tab("picks")
+    assert pushed[-1]["view"] == "picks" and pushed[-1]["tab"] == "picks"
+    ctl.on_session(session())  # ban phase over: picks, no tabs
+    assert pushed[-1]["view"] == "picks" and "tabs" not in pushed[-1]
+
+
+def test_preload_runs_once_per_role(monkeypatch):
+    ctl = Controller(Config(), lambda s: None)
+    loaded = []
+
+    class Rec(StubRec):
+        def has_pool(self, role, tier=None): return False
+        def pool(self, role, progress=None, tier=None): loaded.append(role); progress("Loading x 1/1...")
+    ctl.rec = Rec()
+    ctl.lobby_roles = lambda: ["support", "bottom"]
+    started = []
+    monkeypatch.setattr("controller.threading.Thread", lambda target, args, **kw: started.append((target, args)) or type("T", (), {"start": lambda self: target(*args)})())
+    ctl.on_phase("Lobby")
+    ctl.on_phase("Matchmaking")  # same roles: nothing new to load
+    assert loaded == ["support", "bottom"] and len(started) == 1
+    assert ctl.preload == "Stats ready: support, bottom"

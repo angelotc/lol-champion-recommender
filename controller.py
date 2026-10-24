@@ -17,7 +17,7 @@ from data.store import Store
 from engine import Evaluation, Recommender
 from paths import DATA_DIR
 from scoring import LANES
-from state import DRAFT_STAGES, Event, Session, Stage
+from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Event, Session, Stage
 
 SETTINGS = DATA_DIR / "settings.json"
 log = logging.getLogger("controller")
@@ -51,6 +51,10 @@ class Controller:
         self.notice: tuple[str, str] | None = None  # (message, kind) shown instead of the stage view
         self.draft_id: int | None = None
         self.last_eval: Evaluation | None = None
+        self.tab: str | None = None        # "bans" | "picks" chosen by you during the ban phase
+        self.lobby_roles: Callable[[], list[str]] = lambda: []  # set by the live source
+        self.preload: str = ""             # progress line while preloading in lobby/queue
+        self._preloaded: set[tuple[str, str]] = set()
 
     # -- setup ------------------------------------------------------------
     def boot(self) -> None:
@@ -85,17 +89,22 @@ class Controller:
             stage = s.stage
             if stage not in DRAFT_STAGES or not s.draft:
                 msg = self.idle_message if stage == Stage.IDLE else views.STAGE_MESSAGES.get(stage, "")
-                self.show_status(msg)
+                self.push(views.status(self.header(), msg) | {"detail": self.preload if stage in PRE_DRAFT_STAGES else ""})
                 return
             if not self.rec or self.rec.role_for(s.draft) is None:
                 self.show_status("No assigned role in this queue - recommendations need a position (draft or ranked).")
                 return
+            tabs = {"tabs": ["bans", "picks"], "tab": self.tab or "bans"} if stage == Stage.BAN else {}
             try:
+                if tabs and tabs["tab"] == "bans":
+                    bev = self.rec.bans(s.draft, s.pickable)
+                    self.push(views.bans(self.header(bev.role), bev, self.rec.champs) | tabs)
+                    return
                 ev = self.rec.evaluate(s.draft, s.pickable, s.enemy_lanes)
                 if s.frozen:  # teams stay live, recommendations stay as they were at lock-in
                     ev.recs = self.rec.evaluate(s.frozen, s.pickable, s.enemy_lanes).recs
                 self.last_eval = ev
-                self.push(views.picks(self.header(ev.role), ev, self.rec.champs, s.enemy_lanes))
+                self.push(views.picks(self.header(ev.role), ev, self.rec.champs, s.enemy_lanes) | tabs)
             except Exception:
                 log.exception("evaluate failed")
                 self.show_status("Error scoring draft (see app.log)", "error")
@@ -118,8 +127,11 @@ class Controller:
         if not events:
             return
         s = self.session
+        if Event.PHASE in events and s.stage in PRE_DRAFT_STAGES:
+            self.start_preload()
         if Event.DRAFT_STARTED in events:
             self.user_hidden = False  # new draft: bring the panel back
+            self.tab, self.preload = None, ""
             if self.store:
                 role = self.rec.role_for(s.draft) if self.rec and s.draft else None
                 self.draft_id = self._record(lambda: self.store.start_draft(role, self.tier))
@@ -147,7 +159,55 @@ class Controller:
             log.exception("store write failed")
             return None
 
+    # -- preloading ------------------------------------------------------
+    def start_preload(self) -> None:
+        """Load stats for your lobby position preferences in the background, so the draft opens
+        with recommendations instead of a loading bar."""
+        if not self.rec:
+            return
+        try:
+            roles = [r for r in self.lobby_roles() if (self.tier, r) not in self._preloaded]
+        except Exception:
+            log.exception("lobby positions")
+            return
+        if not roles:
+            return
+        self._preloaded |= {(self.tier, r) for r in roles}
+        threading.Thread(target=self._preload, args=(roles, self.tier), daemon=True, name="preload").start()
+
+    def _preload(self, roles: list[str], tier: str) -> None:
+        for role in roles:
+            if self.rec.has_pool(role, tier):
+                continue
+
+            def progress(msg: str) -> None:
+                self.preload = "Preloading " + msg.removeprefix("Loading ")
+                # never block: a draft render may hold the lock while waiting for this very pool
+                if not self.lock.acquire(blocking=False):
+                    return
+                try:
+                    if self.session.stage in PRE_DRAFT_STAGES and not self.notice:
+                        self.render()
+                finally:
+                    self.lock.release()
+
+            try:
+                self.rec.pool(role, progress=progress, tier=tier)
+            except Exception:
+                log.exception("preload %s", role)
+                self._preloaded.discard((tier, role))
+        self.preload = "Stats ready: " + ", ".join(roles)
+        with self.lock:
+            if self.session.stage in PRE_DRAFT_STAGES:
+                self.render()
+
     # -- panel actions ----------------------------------------------------
+    def set_tab(self, tab: str) -> None:
+        if tab in ("bans", "picks"):
+            with self.lock:
+                self.tab = tab
+                self.render()
+
     def set_tier(self, tier: str) -> None:
         if tier not in views.TIERS or not self.rec:
             return

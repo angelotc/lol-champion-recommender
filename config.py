@@ -36,6 +36,8 @@ class Config:
     k: float = 500
     tentative_factor: float = 0.5
     top_n: int = 8
+    ban_count: int = 5       # ban suggestions shown
+    ban_vs_top: int = 5      # measure bans against this many of your top picks
     lockfile: str = DEFAULT_LOCKFILE
     weights: dict[str, dict] = field(default_factory=dict)  # per-role overrides
 

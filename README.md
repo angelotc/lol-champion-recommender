@@ -49,6 +49,16 @@ Edit `config.toml` to set:
 The first draft in a role each day loads stats for that role's candidates, about 6 requests each,
 6 at a time, around 10-30 seconds; after that they come from cache.
 
+## Lobby, queue and bans
+In the lobby and in queue the panel loads stats for your first and second position preference
+in the background, so recommendations are ready the moment champ select opens.
+
+During the ban phase the panel shows **Bans**: enemy champions worth banning, scored by how
+likely you are to face them (their pick rate in each lane) times how much they hurt you (how
+your likely picks do against them, shrunk by games, plus their own strength), weighted by lane.
+Hover a suggestion to see the matchup against each of your picks. Your team's picks and hovers
+and your own top picks are never suggested. Switch to **Picks** with the tab at the top.
+
 ## Enemy lanes and flex picks
 The client doesn't say which lane each enemy plays, so lanes are guessed from each champion's play rates.
 Champions with a real second lane (10% or more of their games, e.g. Hwei mid/bot) get a gold dot. Click

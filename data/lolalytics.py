@@ -99,6 +99,12 @@ class Lolalytics:
     def days(self) -> int:
         return int(self.common["patch"])
 
+    def at_tier(self, tier: str) -> "Lolalytics":
+        """A view of this client at another tier, sharing the fetcher and cache."""
+        other = Lolalytics.__new__(Lolalytics)
+        other.common, other.fetch, other.cache = self.common | {"tier": tier}, self.fetch, self.cache
+        return other
+
     def _get(self, **params) -> dict:
         q = {"ep": params.pop("ep"), **self.common, **params}
         key = "_".join(f"{v}" for v in q.values() if v)

@@ -9,6 +9,7 @@
 <body>
 <div class="hdr"><div class="t" id="title">Pick Recommender</div><button class="x" id="hide" title="Hide">&times;</button></div>
 <div class="tiers hidden" id="tiersBox"><div><div class="pill" id="tiers"></div><div class="note hidden" id="note"></div></div></div>
+<div class="tabs hidden" id="tabs"></div>
 
 <section class="view hidden" data-view="picks">
   <div class="team" id="team">
@@ -21,14 +22,24 @@
   <div class="recs" id="recs"></div>
 </section>
 
+<section class="view hidden" data-view="bans">
+  <div class="team">
+    <div><div class="rlabel">Allies</div><div class="row" id="banAllies"></div></div>
+    <div class="bans" id="banBansBox"><div class="rlabel">Banned</div><div class="row" id="banBans"></div></div>
+    <div class="vsline" id="banPicks"></div>
+  </div>
+  <div class="recs" id="threats"></div>
+</section>
+
 <section class="view" data-view="status">
-  <div class="empty" id="empty"><div class="dot"></div><div id="msg"></div></div>
+  <div class="empty" id="empty"><div class="dot"></div><div id="msg"></div><div class="sdetail" id="sdetail"></div></div>
 </section>
 
 <div class="foot" id="foot">Data: lolalytics &middot; last update --:--:--</div>
 <script src="js/core.js"></script>
 <script src="views/status.js"></script>
 <script src="views/picks.js"></script>
+<script src="views/bans.js"></script>
 <script src="js/demo.js"></script>
 </body>
 </html>

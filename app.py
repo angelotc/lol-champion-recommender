@@ -55,6 +55,9 @@ class Api:
     def set_enemy_lane(self, champion_id: int, lane: str) -> None:
         self._app.ctl.set_enemy_lane(int(champion_id), lane)
 
+    def set_tab(self, tab: str) -> None:
+        self._app.ctl.set_tab(tab)
+
 
 class App:
     def __init__(self, args):
@@ -96,6 +99,15 @@ class App:
                 except Exception:
                     pass
             ctl.on_session(session, pickable)
+
+        def lobby_roles() -> list[str]:
+            client = LcuClient(read_lockfile(lockfile))
+            try:
+                return client.get_lobby_positions()
+            finally:
+                client.close()
+
+        ctl.lobby_roles = lobby_roles
 
         def on_phase(phase: str) -> None:
             ctl.idle_message = "Waiting for champ select..."  # connected (the panel is hidden when idle)

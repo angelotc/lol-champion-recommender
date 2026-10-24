@@ -96,6 +96,21 @@ class LcuClient:
         r.raise_for_status()
         return str(r.json())
 
+    def get_lobby_positions(self) -> list[str]:
+        """Your first and second position preference in the current lobby, as lane names
+        (empty outside a lobby, or for fill / unselected)."""
+        r = self.get("/lol-lobby/v2/lobby")
+        if r.status_code != 200:
+            return []
+        me = (r.json() or {}).get("localMember") or {}
+        out = []
+        for key in ("firstPositionPreference", "secondPositionPreference"):
+            pos = str(me.get(key) or "").lower()
+            pos = POSITIONS.get(pos, pos)
+            if pos in ("top", "jungle", "middle", "bottom", "support") and pos not in out:
+                out.append(pos)
+        return out
+
     def get_patch(self) -> str:
         r = self.get("/lol-patch/v1/game-version")
         r.raise_for_status()

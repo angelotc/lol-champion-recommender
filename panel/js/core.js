@@ -50,6 +50,16 @@
     $("note").classList.toggle("hidden",!s.note);
   }
 
+  function renderTabs(s){
+    var box=$("tabs");clear(box);
+    box.classList.toggle("hidden",!(s.tabs&&s.tabs.length));
+    (s.tabs||[]).forEach(function(t){
+      var b=el("button",t===s.tab?"on":null,t);
+      b.addEventListener("click",function(){if(t!==s.tab)api("set_tab",t)});
+      box.appendChild(b);
+    });
+  }
+
   window.updateState=function(s){
     s=s||{};
     var name=s.view||(s.status==="active"?"picks":"status");
@@ -59,6 +69,7 @@
     $("title").textContent=parts.length?parts.join(" · "):"Pick Recommender";
     renderTiers(s);
     document.querySelectorAll("section.view").forEach(function(v){v.classList.toggle("hidden",v.dataset.view!==name)});
+    renderTabs(s);
     views[name].render(s);
     var n=new Date();
     $("foot").textContent="Data: lolalytics · last update "+pad(n.getHours())+":"+pad(n.getMinutes())+":"+pad(n.getSeconds());
