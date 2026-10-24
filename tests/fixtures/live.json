@@ -1,0 +1,18 @@
+{
+  "activePlayer": {"currentGold": 1320.5, "level": 9, "riotId": "Me#NA1", "summonerName": "Me#NA1"},
+  "allPlayers": [
+    {"championName": "Dr. Mundo", "team": "ORDER", "position": "TOP", "riotId": "A#1", "items": []},
+    {"championName": "Shyvana", "team": "ORDER", "position": "JUNGLE", "riotId": "B#1", "items": []},
+    {"championName": "Aurora", "team": "ORDER", "position": "MIDDLE", "riotId": "C#1", "items": []},
+    {"championName": "Zeri", "team": "ORDER", "position": "BOTTOM", "riotId": "D#1", "items": []},
+    {"championName": "Taric", "team": "ORDER", "position": "UTILITY", "riotId": "Me#NA1", "level": 9,
+     "items": [{"itemID": 3047, "slot": 1}, {"itemID": 3869, "slot": 0}, {"itemID": 2055, "slot": 3}]},
+    {"championName": "Taliyah", "team": "CHAOS", "position": "TOP", "riotId": "E#1", "items": [{"itemID": 3157, "slot": 0}]},
+    {"championName": "Cho'Gath", "team": "CHAOS", "position": "JUNGLE", "riotId": "F#1", "items": []},
+    {"championName": "Briar", "team": "CHAOS", "position": "MIDDLE", "riotId": "G#1", "items": []},
+    {"championName": "Aphelios", "team": "CHAOS", "position": "BOTTOM", "riotId": "H#1", "items": []},
+    {"championName": "Janna", "team": "CHAOS", "position": "UTILITY", "riotId": "I#1", "items": []}
+  ],
+  "events": {"Events": []},
+  "gameData": {"gameMode": "CLASSIC", "gameTime": 1094.9, "mapName": "Map11", "mapNumber": 11}
+}

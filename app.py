@@ -5,7 +5,7 @@
   uv run app.py --replay drafts/x.jsonl  replay a recorded draft (panel always shown)
   uv run app.py --simulate --role middle --allies jinx --enemies syndra,leesin
 
-Ctrl+Shift+L toggles the panel.
+Ctrl+Shift+L toggles the panel. Ctrl+Shift+B toggles the in-game build panel.
 """
 from __future__ import annotations
 
@@ -29,11 +29,12 @@ from data.store import Store
 from lcu import DraftState, LcuClient, Slot, read_lockfile, watch_session
 from paths import DATA_DIR, RESOURCES
 from scoring import LANES
-from state import DRAFT_STAGES, PRE_DRAFT_STAGES
+from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Stage
 
 TITLE = "League Pick Helper"
 VISIBLE_STAGES = DRAFT_STAGES | PRE_DRAFT_STAGES  # never in game, loading or post-game
 MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT, WM_HOTKEY = 0x2, 0x4, 0x4000, 0x0312
+HOTKEYS = {1: "L", 2: "B"}  # Ctrl+Shift+L panel, Ctrl+Shift+B in-game panel
 CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT = 0, 1, 2
 HANDLER_ROUTINE = ctypes.WINFUNCTYPE(w.BOOL, w.DWORD)
 
@@ -129,23 +130,36 @@ class App:
             ctl.render()
 
     # -- window placement -------------------------------------------------
+    def _target(self, panel: int) -> tuple[tracker.Placement | None, bool]:
+        """Where the panel should be and whether it may show there."""
+        if not self.always_show and self.ctl.session.stage == Stage.INGAME:
+            game = tracker.find_game()  # in game: only after Ctrl+Shift+B, over the game's right edge
+            if not (game and self.ctl.ingame_shown) or tracker.is_minimized(game):
+                return None, False
+            return tracker.place_ingame(tracker.window_rect(game)), tracker.foreground_root() in (game, panel)
+        if self.ctl.user_hidden or not (self.always_show or self.ctl.session.stage in VISIBLE_STAGES):
+            return None, False
+        if not self.always_show and tracker.game_running():
+            return None, False  # never beside the game
+        client = tracker.find_client()
+        if client and not tracker.is_minimized(client):
+            placement = tracker.place(tracker.window_rect(client), tracker.work_area(client))
+            return placement, self.always_show or tracker.foreground_root() in (client, panel)
+        if self.always_show:
+            return tracker.standalone(tracker.primary_work_area()), True
+        return None, False
+
     def track(self) -> None:
         panel = 0
-        shown, last = False, None
+        shown, last, through = False, None, False
         while True:
             panel = panel or tracker.find_window(TITLE)
-            client = tracker.find_client()
-            placement, focused = None, False
-            if client and not tracker.is_minimized(client):
-                placement = tracker.place(tracker.window_rect(client), tracker.work_area(client))
-                focused = self.always_show or tracker.foreground_root() in (client, panel)
-            elif self.always_show:
-                placement, focused = tracker.standalone(tracker.primary_work_area()), True
-            wanted = self.always_show or self.ctl.session.stage in VISIBLE_STAGES
-            visible = bool(
-                panel and placement and focused and wanted and not self.ctl.user_hidden
-                and (self.always_show or not tracker.game_running())  # never over or beside the game
-            )
+            placement, focused = self._target(panel) if panel else (None, False)
+            visible = bool(placement and focused)
+            ingame = bool(placement and placement.mode == "ingame")
+            if panel and through != ingame:  # in game, clicks go to the game, never to the panel
+                tracker.set_click_through(panel, ingame)
+                through = ingame
             if visible and (not shown or placement != last):
                 if not last or (placement.mode, placement.scale) != (last.mode, last.scale):
                     self.js(f"setScale({placement.scale:.3f});setMode({json.dumps(placement.mode)})")
@@ -159,18 +173,22 @@ class App:
             time.sleep(0.25)
 
     def hotkey(self) -> None:
-        if not ctypes.windll.user32.RegisterHotKey(None, 1, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, ord("L")):
-            log.warning("Ctrl+Shift+L is taken by another app; hotkey disabled")
-            return
+        for hid, key in HOTKEYS.items():
+            if not ctypes.windll.user32.RegisterHotKey(None, hid, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, ord(key)):
+                log.warning("Ctrl+Shift+%s is taken by another app; that hotkey is disabled", key)
         msg = w.MSG()
         while ctypes.windll.user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
-            if msg.message == WM_HOTKEY:
+            if msg.message != WM_HOTKEY:
+                continue
+            if msg.wParam == 1:
                 self.ctl.user_hidden = not self.ctl.user_hidden
+            elif msg.wParam == 2:
+                threading.Thread(target=self.ctl.toggle_ingame, daemon=True).start()
 
     # -- startup ----------------------------------------------------------
     def boot(self) -> None:
         self.window.events.loaded.wait(15)
-        for target in (self.track, self.hotkey):
+        for target in (self.track, self.hotkey, self.ctl.live_loop):
             threading.Thread(target=target, daemon=True).start()
         try:
             self.ctl.boot()

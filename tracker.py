@@ -14,6 +14,11 @@ user32.GetForegroundWindow.restype = w.HWND
 user32.MonitorFromWindow.argtypes = [w.HWND, w.DWORD]
 user32.MonitorFromWindow.restype = w.HMONITOR
 user32.GetMonitorInfoW.argtypes = [w.HMONITOR, ctypes.c_void_p]
+user32.GetWindowLongW.argtypes = [w.HWND, ctypes.c_int]
+user32.SetWindowLongW.argtypes = [w.HWND, ctypes.c_int, ctypes.c_long]
+user32.SetLayeredWindowAttributes.argtypes = [w.HWND, w.COLORREF, w.BYTE, w.DWORD]
+user32.WindowFromPoint.argtypes = [w.POINT]
+user32.WindowFromPoint.restype = w.HWND
 
 CLIENT_CLASS = "RCLIENT"
 CLIENT_TITLE = "League of Legends"
@@ -127,3 +132,33 @@ def standalone(area: Rect) -> Placement:
 
 def move(hwnd: int, p: Placement) -> None:
     user32.SetWindowPos(hwnd, HWND_TOPMOST, p.x, p.y, p.width, p.height, SWP_NOACTIVATE)
+
+
+INGAME_BASE = 250  # in-game panel width at 1080p: narrower, it sits over the game
+GWL_EXSTYLE = -20
+WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_NOACTIVATE = 0x00080000, 0x00000020, 0x08000000
+LWA_ALPHA = 0x2
+
+
+def find_game() -> int:
+    return user32.FindWindowW(GAME_CLASS, None) or 0
+
+
+def place_ingame(game: Rect) -> Placement:
+    """Right edge of the game, below the top bar and above the minimap (bottom right)."""
+    scale = game.height / PANEL_BASE[1]
+    width = max(200, round(INGAME_BASE * scale))
+    top = game.top + round(game.height * 0.13)
+    height = round(game.height * 0.56)  # the minimap starts around 72% down
+    return Placement("ingame", game.right - width - round(4 * scale), top, width, height, width / PANEL_BASE[0])
+
+
+def set_click_through(hwnd: int, on: bool) -> None:
+    """Let clicks pass through the panel to the game (and never take focus from it)."""
+    style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+    bits = WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE
+    new = (style | bits) if on else (style & ~bits)
+    if new != style:
+        user32.SetWindowLongW(hwnd, GWL_EXSTYLE, new)
+        if on:  # a layered window draws nothing until given an alpha: keep it fully opaque
+            user32.SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA)

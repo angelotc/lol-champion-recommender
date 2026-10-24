@@ -170,5 +170,30 @@ body.overlay .tiers{padding:.1875rem .5rem}
 .skillord span.R{background:var(--gold);color:#010a13}
 .skillord span.max{color:var(--gold2);background:#1d3355}
 .bnote{font-size:.5625rem;color:var(--dim);line-height:1.35}
+/* in-game mode: compact, see-through, nothing to click (the window passes clicks to the game) */
+body[data-mode=ingame]{--bgalpha:1;font-size:.75rem}
+body[data-mode=ingame] .hdr,body[data-mode=ingame] .tiers,body[data-mode=ingame] .tabs,body[data-mode=ingame] .foot{display:none!important}
+.igbody{gap:.375rem;padding:.4375rem .5rem}
+.ig-h{display:flex;align-items:center;gap:.375rem;flex:none}
+.ig-h .igc{width:2rem;height:2rem;border-radius:5px;border:1px solid var(--gold)}
+.ig-h .igk{width:1.5rem;height:1.5rem;margin-left:auto;background:#0b1220}
+.ig-t{min-width:0}
+.ig-n{font-weight:600;color:var(--gold2);font-size:.8125rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ig-s{font-size:.625rem;color:var(--muted)}
+.ig-sec{flex:none}
+.ig-l{font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600;margin-bottom:.125rem}
+.ig-core{display:flex;align-items:center;gap:2px}
+.ig-core .ico,.ig-opt .ico{width:1.625rem;height:1.625rem;border-radius:3px;border:1px solid var(--line2)}
+.ico.own{opacity:.35;filter:grayscale(.6)}
+.ico.own::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--pos);font-weight:700;font-size:.875rem;text-shadow:0 0 2px #000}
+.ig-core .arrow{color:var(--dim);font-size:.625rem}
+.ig-next{display:flex;justify-content:space-between;font-size:.625rem;color:var(--muted);margin-top:.1875rem;gap:.25rem}
+.ig-next span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ig-next b{color:var(--gold2);flex:none}
+.ig-opt{display:flex;align-items:center;gap:.25rem;margin-bottom:2px}
+.ig-wr{font-size:.5625rem;color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden}
+.ig-mu{font-size:.625rem;font-weight:700;flex:none;min-width:1.75rem;text-align:right}
+.skillord span.now{outline:1px solid var(--gold2);color:var(--gold2)}
+.skillord span.done{opacity:.4}
 /* view router */
 .view{flex:1;min-height:0;display:flex;flex-direction:column}

@@ -14,6 +14,7 @@ from typing import Callable
 import views
 from config import Config
 from data import lcu_data
+from data.live import LiveClient, LiveGame
 from data.store import Store
 from engine import BuildEvaluation, Evaluation, Recommender
 from paths import DATA_DIR
@@ -23,6 +24,7 @@ from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Event, Session, Stage
 
 SETTINGS = DATA_DIR / "settings.json"
 SYNC_EVERY = 20.0  # seconds; history/mastery sync is cheap but not free
+LIVE_POLL = 2.0  # seconds between game data reads while the in-game panel is shown
 STAGE_TABS = {Stage.BAN: ["bans", "picks"], Stage.LOCKED: ["build", "picks"]}  # first is the default
 log = logging.getLogger("controller")
 
@@ -62,6 +64,10 @@ class Controller:
         self._synced_at = 0.0
         self.preload: str = ""             # progress line while preloading in lobby/queue
         self._preloaded: set[tuple[str, str]] = set()
+        self.ingame_shown = False          # Ctrl+Shift+B; stays as you left it for the next game
+        self.live: LiveGame | None = None
+        self.last_role: str = ""           # role from your last draft (games without positions)
+        self._live_client: LiveClient | None = None
 
     # -- setup ------------------------------------------------------------
     def boot(self) -> None:
@@ -117,6 +123,9 @@ class Controller:
                 return
             s = self.session
             stage = s.stage
+            if stage == Stage.INGAME and self.ingame_shown:
+                self._render_ingame()
+                return
             if stage not in DRAFT_STAGES or not s.draft:
                 msg = self.idle_message if stage == Stage.IDLE else views.STAGE_MESSAGES.get(stage, "")
                 self.push(views.status(self.header(), msg) | {"detail": self.preload if stage in PRE_DRAFT_STAGES else ""})
@@ -144,13 +153,34 @@ class Controller:
                 log.exception("evaluate failed")
                 self.show_status("Error scoring draft (see app.log)", "error")
 
+    def _render_ingame(self) -> None:
+        g = self.live
+        if not g or not self.rec:
+            self.show_status("Waiting for game data...")
+            return
+        cid = self.rec.champs.id_from_slug(g.champion)
+        role = g.role or self.last_role
+        if not cid or not role:
+            self.show_status("No build: champion or role unknown in this game.")
+            return
+        enemies = {lane: e for lane, name in g.enemies.items() if (e := self.rec.champs.id_from_slug(name))}
+        try:
+            bev = self._build_for(cid, role, enemies)
+            self.push(views.ingame(self.header(role), g, bev, self.rec.champs, self.rec.assets))
+        except Exception:
+            log.exception("in-game build failed")
+            self.show_status("Error loading build (see app.log)", "error")
+
     def _build(self, ev: Evaluation) -> BuildEvaluation:
         """Build for your locked champion vs the enemies' lanes, memoized per draft state."""
         enemies = {lane: cid for cid, lane in ev.lanes.items() if cid in ev.draft.enemies}
-        key = (ev.draft.my_locked, ev.role, self.tier, tuple(sorted(enemies.items())))
+        return self._build_for(ev.draft.my_locked, ev.role, enemies)
+
+    def _build_for(self, cid: int, role: str, enemies: dict[str, int]) -> BuildEvaluation:
+        key = (cid, role, self.tier, tuple(sorted(enemies.items())))
         if self._build_cache and self._build_cache[0] == key:
             return self._build_cache[1]
-        bev = self.rec.build(ev.draft.my_locked, ev.role, enemies)
+        bev = self.rec.build(cid, role, enemies)
         self._build_cache = (key, bev)
         return bev
 
@@ -187,6 +217,8 @@ class Controller:
         if Event.LOCKED_IN in events:
             self.tab = None  # show the build first, whatever tab you had in the ban phase
         self.render()
+        if Event.LOCKED_IN in events and self.last_eval:
+            self.last_role = self.last_eval.role
         if Event.LOCKED_IN in events and self.draft_id is not None and self.last_eval:
             ev = self.last_eval
             self._record(lambda: self.store.update_draft(self.draft_id, my_champ=s.draft.my_locked, role=ev.role))
@@ -269,6 +301,34 @@ class Controller:
         with self.lock:
             if self.session.stage in PRE_DRAFT_STAGES:
                 self.render()
+
+    # -- in game -----------------------------------------------------------
+    def toggle_ingame(self) -> None:
+        with self.lock:
+            self.ingame_shown = not self.ingame_shown
+        if self.ingame_shown:
+            self.poll_live()
+
+    def poll_live(self) -> bool:
+        """Read the game's local data once; re-render if your state changed. True if a game is up."""
+        if self._live_client is None:
+            self._live_client = LiveClient()
+        g = self._live_client.game()
+        changed = g != self.live
+        self.live = g
+        if changed:
+            self.render()
+        return g is not None
+
+    def live_loop(self) -> None:
+        """Background: keep game data fresh while the in-game panel is shown."""
+        while True:
+            if self.ingame_shown and self.session.stage == Stage.INGAME:
+                try:
+                    self.poll_live()
+                except Exception:
+                    log.exception("live poll")
+            time.sleep(LIVE_POLL)
 
     # -- panel actions ----------------------------------------------------
     def set_tab(self, tab: str) -> None:

@@ -5,6 +5,7 @@ from data import builds
 from data.builds import Option
 from data.champions import Champions
 from data.ddragon import Assets
+from data.live import LiveGame
 from engine import BanEvaluation, BuildEvaluation, Evaluation
 from scoring import LANES
 from state import Stage
@@ -171,6 +172,61 @@ def build(head: dict, bev: BuildEvaluation, champs: Champions, assets: Assets, t
         "skills": [{"key": o.key, "wr": round(o.wr, 1), "pr": round(o.pr, 1), "games": o.games} for o in (b.sections.get("skills") or [])[:2]],
         "skill_order": "".join(SKILLS.get(ch, "?") for ch in order.key) if order else "",
         "items": sections,
+    }
+
+
+def _owned(iid: int, items: set[int], assets: Assets) -> bool:
+    """You have this item, or (support item, boots) anything further along its line."""
+    if iid in items:
+        return True
+    if iid in SUPPORT_ITEMS:
+        return bool(items & SUPPORT_ITEMS)
+    it = assets.items.get(iid)
+    if it and "Boots" in it.tags:
+        return any("Boots" in (o.tags if (o := assets.items.get(i)) else []) and i != 1001 for i in items)
+    return False
+
+
+def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Champions, assets: Assets) -> dict:
+    """In-game: the build worked out before the game (your champion vs the lanes), with what you
+    already own. Uses only your own items and gold; never the enemies' items."""
+    champ = lambda cid: {"name": champs.name(cid), "icon": champs.icon_url(cid)}
+    out = head | {"view": "ingame", "status": "active", "message": "", "level": live.level,
+                  "gold": int(live.gold), "time": int(live.game_time)}
+    b = bev.build if bev else None
+    if bev:
+        out["champ"] = champ(bev.champion_id)
+    if b is None:
+        return out | {"empty": "No build data for this champion and role."}
+    owned = set(live.items)
+
+    def item(iid: int) -> dict:
+        it = assets.items.get(iid)
+        return assets.item(iid) | {"gold": it.gold if it else 0, "owned": _owned(iid, owned, assets)}
+
+    def opt(o: Option) -> dict:
+        return {"parts": [item(i) for i in o.ids], "wr": round(o.wr, 1), "pr": round(o.pr, 1), "games": o.games,
+                "matchup": round(o.matchup, 2), "has_vs": bool(o.vs)}
+
+    core = (b.sections.get("core") or [None])[0]
+    path = [item(i) for i in core.ids] if core else []
+    nxt = next((p for p in path if not p["owned"]), None)
+    sections = []
+    for key, title in (("boots", "Boots"), ("item4", "4th item"), ("item5", "5th item")):
+        opts = b.sections.get(key) or []
+        if key == "boots" and any(o for o in opts[:1] if _owned(o.ids[0], owned, assets)):
+            continue
+        if opts:
+            sections.append({"title": title, "options": [opt(o) for o in opts[:3]]})
+    order = (b.sections.get("skill_order") or [None])[0]
+    page = b.pages.get("pick")
+    return out | {
+        "opponents": [champ(e) | {"lane": l} for e, l, _, _ in b.vs],
+        "core": path,
+        "next": nxt,
+        "sections": sections,
+        "skill_order": "".join(SKILLS.get(ch, "?") for ch in order.key) if order else "",
+        "keystone": assets.rune(page.primary[0]) if page and page.primary else None,
     }
 
 

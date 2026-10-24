@@ -22,7 +22,7 @@ uv run pytest
 ```
 The panel shows while the League client is in front: in the lobby, in queue and at the ready check
 it shows where you are, and in champ select it shows the recommendations. It hides in game.
-Ctrl+Shift+L toggles the panel. Ctrl+C in the terminal quits.
+Ctrl+Shift+L toggles the panel, Ctrl+Shift+B the in-game panel. Ctrl+C in the terminal quits.
 
 ## Rank tier
 The pill at the top of the panel switches the stats between **Master+**, **GM+** and **Challenger**.
@@ -71,6 +71,18 @@ them) - (option win rate overall - your win rate overall)`, shrunk by games (k =
 games hidden). Positive means it does better than usual in this matchup. The strongest is tagged
 **BEST VS LANE**; hover any option for each opponent. Nothing is imported into the client: you
 set your runes and items yourself.
+
+## In game (Ctrl+Shift+B)
+Press **Ctrl+Shift+B** in game to show a compact build panel on the right edge of the game,
+above the minimap (press again to hide; it remembers your choice for the next game). It shows
+your core build with the items you already own ticked, the next item and how much more gold it
+needs, item options with their Δ vs your lane opponents, and the skill order at your level.
+Clicks pass through it to the game.
+
+It only reads the game's local data for your own champion, items, gold and level, plus every
+player's champion and position. It never uses enemy items or timers: everything it suggests was
+worked out from data available before the game (Riot's third-party policy). Needs **borderless**
+or **windowed** display mode; exclusive fullscreen draws over any other window.
 
 ## Your champions (comfort)
 Scores include what you're good at:

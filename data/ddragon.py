@@ -15,14 +15,14 @@ CDRAGON_PERKS = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-
 log = logging.getLogger(__name__)
 # stat shards aren't in runesReforged.json
 SHARDS = {
-    5001: ("Health (scaling)", "statmodshealthplusicon.png"),
+    5001: ("Health (scaling)", "statmodshealthscalingicon.png"),
     5002: ("Armor", "statmodsarmoricon.png"),
     5003: ("Magic Resist", "statmodsmagicresicon.png"),
     5005: ("Attack Speed", "statmodsattackspeedicon.png"),
     5007: ("Ability Haste", "statmodscdrscalingicon.png"),
     5008: ("Adaptive Force", "statmodsadaptiveforceicon.png"),
     5010: ("Move Speed", "statmodsmovementspeedicon.png"),
-    5011: ("Health", "statmodshealthscalingicon.png"),
+    5011: ("Health", "statmodshealthplusicon.png"),
     5013: ("Tenacity and Slow Resist", "statmodstenacityicon.png"),
 }
 
