@@ -5,10 +5,11 @@ Client API, detects the role you're assigned, pulls last-14-days matchup and syn
 lolalytics, and ranks picks from your champion pool for that role. Shows a panel docked beside
 the League client.
 
-<img src="docs/panel.png" alt="Panel: allies, enemies with inferred lanes, bans, and ranked support picks with the matchups behind each score" width="300">
+<img src="docs/panel.png" alt="Panel: tier pill, allies, enemies with inferred lanes, bans, and ranked support picks; the top pick is expanded to show each matchup delta, games, weighted value and base" width="300">
 
 Each score is the pick's baseline win rate plus weighted matchup deltas vs enemies and synergy deltas with allies;
-the lines under each pick show its two biggest contributions.
+the lines under each pick show its two biggest contributions. Hover or click a pick to see every
+matchup and synergy behind its score: the delta, the games it's based on, and its weighted value.
 
 ## Run
 ```
