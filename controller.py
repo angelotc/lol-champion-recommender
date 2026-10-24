@@ -363,8 +363,12 @@ class Controller:
     def toggle_ingame(self) -> None:
         with self.lock:
             self.ingame_shown = not self.ingame_shown
+        log.info("in-game panel %s", "on" if self.ingame_shown else "off")
         if self.ingame_shown:
-            self.poll_live()
+            try:
+                log.info("game data: %s", "found" if self.poll_live() else "not available")
+            except Exception:
+                log.exception("in-game panel")
 
     def poll_live(self) -> bool:
         """Read the game's local data once; re-render if your state changed. True if a game is up."""

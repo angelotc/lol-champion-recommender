@@ -150,36 +150,50 @@ class App:
         return None, False
 
     def track(self) -> None:
-        panel = 0
-        shown, last, through = False, None, False
+        """Keep the panel placed and shown/hidden; never dies (errors are logged, loop continues)."""
+        state = {"panel": 0, "shown": False, "last": None, "through": False}
         while True:
-            panel = panel or tracker.find_window(TITLE)
-            placement, focused = self._target(panel) if panel else (None, False)
-            visible = bool(placement and focused)
-            ingame = bool(placement and placement.mode == "ingame")
-            if panel and through != ingame:  # in game, clicks go to the game, never to the panel
-                tracker.set_click_through(panel, ingame)
-                through = ingame
-            if visible and (not shown or placement != last):
-                if not last or (placement.mode, placement.scale) != (last.mode, last.scale):
-                    self.js(f"setScale({placement.scale:.3f});setMode({json.dumps(placement.mode)})")
-                if not shown:
-                    self.window.show()  # via pywebview so WinForms/WebView2 know they're visible
-                tracker.move(panel, placement)
-                shown, last = True, placement
-            elif not visible and shown:
-                self.window.hide()
-                shown = False
+            try:
+                self._track_once(state)
+            except Exception:
+                log.exception("track")
+                time.sleep(1.0)
             time.sleep(0.25)
+
+    def _track_once(self, st: dict) -> None:
+        panel, shown, last, through = st["panel"], st["shown"], st["last"], st["through"]
+        panel = panel or tracker.find_window(TITLE)
+        placement, focused = self._target(panel) if panel else (None, False)
+        visible = bool(placement and focused)
+        ingame = bool(placement and placement.mode == "ingame")
+        if panel and through != ingame:  # in game, clicks go to the game, never to the panel
+            tracker.set_click_through(panel, ingame)
+            through = ingame
+        if visible and (not shown or placement != last):
+            if not last or (placement.mode, placement.scale) != (last.mode, last.scale):
+                self.js(f"setScale({placement.scale:.3f});setMode({json.dumps(placement.mode)})")
+            if not shown:
+                log.info("panel shown (%s)", placement.mode)
+                self.window.show()  # via pywebview so WinForms/WebView2 know they're visible
+            tracker.move(panel, placement)
+            shown, last = True, placement
+        elif not visible and shown:
+            log.info("panel hidden")
+            self.window.hide()
+            shown = False
+        st.update(panel=panel, shown=shown, last=last, through=through)
 
     def hotkey(self) -> None:
         for hid, key in HOTKEYS.items():
             if not ctypes.windll.user32.RegisterHotKey(None, hid, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, ord(key)):
-                log.warning("Ctrl+Shift+%s is taken by another app; that hotkey is disabled", key)
+                log.warning("Ctrl+Shift+%s is taken by another app (another copy running?); that hotkey is disabled", key)
+            else:
+                log.info("hotkey Ctrl+Shift+%s registered", key)
         msg = w.MSG()
         while ctypes.windll.user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
             if msg.message != WM_HOTKEY:
                 continue
+            log.info("hotkey Ctrl+Shift+%s (stage %s)", HOTKEYS.get(msg.wParam, "?"), self.ctl.session.stage.value)
             if msg.wParam == 1:
                 self.ctl.user_hidden = not self.ctl.user_hidden
             elif msg.wParam == 2:
