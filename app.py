@@ -34,6 +34,12 @@ TITLE = "League Pick Helper"
 TIERS = {"master_plus": "Master+", "grandmaster_plus": "GM+", "challenger": "Challenger"}
 SETTINGS = DATA_DIR / "settings.json"
 LOW_DATA = 0.25  # below this share of possible matchups found, warn that the tier is thin
+# Before champ select the panel shows where you are; it stays hidden in game and on other screens.
+QUEUE_PHASES = {
+    "Lobby": "In lobby - waiting for you to queue...",
+    "Matchmaking": "In queue - waiting for a match...",
+    "ReadyCheck": "Match found!",
+}
 FLEX = 10.0  # an enemy whose second most played lane is at least this % is marked as a flex pick
 MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT, WM_HOTKEY = 0x2, 0x4, 0x4000, 0x0312
 CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT = 0, 1, 2
@@ -231,6 +237,8 @@ class App:
             self.phase = phase
             if phase != "ChampSelect":
                 handle(None)  # don't rely on the session's Delete event to end the draft
+                if phase in QUEUE_PHASES:
+                    self.status(QUEUE_PHASES[phase])
 
         self.status("Waiting for the League client...")
         asyncio.run(watch_session(lambda: read_lockfile(lockfile), handle, on_phase=on_phase))
@@ -266,7 +274,7 @@ class App:
                 focused = self.always_show or tracker.foreground_root() in (client, panel)
             elif self.always_show:
                 placement, focused = tracker.standalone(tracker.primary_work_area()), True
-            in_draft = self.always_show or (self.active and self.phase in (None, "ChampSelect"))
+            in_draft = self.always_show or (self.active and self.phase in (None, "ChampSelect")) or self.phase in QUEUE_PHASES
             visible = bool(
                 panel and placement and focused and in_draft and not self.user_hidden
                 and (self.always_show or not tracker.game_running())  # never over or beside the game

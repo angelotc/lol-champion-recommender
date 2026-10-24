@@ -20,6 +20,8 @@ uv run app.py --replay drafts/x.jsonl    # replay a recorded draft
 uv run app.py --simulate --role support --allies jinx,leesin --enemies nautilus,caitlyn --bans pyke
 uv run pytest
 ```
+The panel shows while the League client is in front: in the lobby, in queue and at the ready check
+it shows where you are, and in champ select it shows the recommendations. It hides in game.
 Ctrl+Shift+L toggles the panel. Ctrl+C in the terminal quits.
 
 ## Rank tier
