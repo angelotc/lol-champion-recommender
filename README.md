@@ -11,6 +11,21 @@ Each score is the pick's baseline win rate plus weighted matchup deltas vs enemi
 the lines under each pick show its two biggest contributions. Hover or click a pick to see every
 matchup and synergy behind its score: the delta, the games it's based on, and its weighted value.
 
+## Views
+Every stage has its own view. These are simulated (`uv run scripts/simulate_views.py`), using the
+real controller and live lolalytics data: support with K'Sante (hovering), Lee Sin, Ahri and Jinx
+vs Caitlyn, Nautilus, Hwei and Viego.
+
+| Queue | Bans | Picks + draft estimate |
+|---|---|---|
+| <img src="docs/views/1-queue.png" width="240"> | <img src="docs/views/2-bans.png" width="240"> | <img src="docs/views/3-picks.png" width="240"> |
+| Stats for your preferred roles preload while you queue. | Ban suggestions vs your likely picks (Kai'Sa expanded). | Your draft's estimated win % with the biggest reasons, then ranked picks (Leona expanded). |
+
+| Flex lane picker | Build after lock-in | In game (Ctrl+Shift+B) |
+|---|---|---|
+| <img src="docs/views/4-flex.png" width="240"> | <img src="docs/views/5-build.png" width="240"> | <img src="docs/views/6-ingame.png" width="240"> |
+| Click an enemy to set their lane (Hwei: mid 66%, bot 24%). | Runes, spells, skills and items with Δ vs your lane opponents. | Core build with owned items ticked, gold to the next item, skill order at your level. |
+
 ## Run
 ```
 uv sync
@@ -48,6 +63,20 @@ Edit `config.toml` to set:
 
 The first draft in a role each day loads stats for that role's candidates, about 6 requests each,
 6 at a time, around 10-30 seconds; after that they come from cache.
+
+## Draft win estimate
+The top of the picks view shows your team's estimated win % vs theirs, updated with every pick,
+hover and lane change, plus the biggest reasons ("+0.9 strong pick: Jinx", "-0.8 synergy:
+Nautilus + Hwei"). It adds, in percentage points:
+- each champion's own strength in its lane (shrunk win rate delta, at half weight because summing
+  five deltas overstates),
+- every cross-team matchup delta, measured from both champions' sides and averaged, weighted 1.0
+  for the same lane, 0.7 between the bot-lane duos and 0.35 across other lanes,
+- synergy between teammates (half weight); hovers count half; capped at 25-75%.
+
+Stats for all 10 champions load in the background as they're picked. It's an **estimate**, not yet
+calibrated: backtesting against your recorded drafts and results is what will tune these weights
+(`[odds]` in `config.toml` overrides them).
 
 ## Lobby, queue and bans
 In the lobby and in queue the panel loads stats for your first and second position preference
@@ -115,7 +144,8 @@ Output: `dist/LeaguePickHelper/`. When packaged, config/cache/logs live in `%LOC
   `%LOCALAPPDATA%\league-analysis\store.sqlite` that records every draft for backtesting.
 - `panel/`: `index.html` + `panel.css`, `js/core.js` (helpers, view router), one file per view in
   `views/`, and `js/demo.js` (open `index.html?demo` in a browser).
-- `scripts/render_panel.py`: headless screenshot of any view, for checking UI changes.
+- `scripts/render_panel.py`: headless screenshot of any view, for checking UI changes;
+  `scripts/simulate_views.py` renders every view from a simulated draft into `docs/views/`.
 
 ## Notes
 - lolalytics has no official API; endpoints are undocumented (`lolalytics.py`) and may change. Responses are cached for 24h.

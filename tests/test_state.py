@@ -81,6 +81,9 @@ class StubRec:
     def evaluate(self, draft, pickable=None, enemy_lanes=None):
         return Evaluation(draft, draft.my_position, [Recommendation(412, 2.5, 1.0, [])], {})
 
+    def odds_inputs(self, ev):
+        return {}, {}
+
 
 def test_controller_records_draft(tmp_path):
     pushed = []

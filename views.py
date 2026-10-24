@@ -7,7 +7,7 @@ from data.champions import Champions
 from data.ddragon import Assets
 from data.live import LiveGame
 from engine import BanEvaluation, BuildEvaluation, Evaluation
-from scoring import LANES
+from scoring import LANES, DraftOdds, OddsTerm
 from state import Stage
 
 TIERS = {"master_plus": "Master+", "grandmaster_plus": "GM+", "challenger": "Challenger"}
@@ -230,9 +230,26 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
     }
 
 
-def record(ev: Evaluation) -> dict:
+def odds(o: DraftOdds | None, champs: Champions, top: int = 4) -> dict | None:
+    if o is None:
+        return None
+    name = champs.name
+    def label(t: OddsTerm) -> str:
+        if t.kind == "strength":
+            return f"{name(t.champions[0])} ({t.lanes[0]})"
+        joiner = " vs " if t.kind == "matchup" else " + "
+        return joiner.join(name(c) for c in t.champions)
+    return {
+        "win": round(o.win, 1), "known": o.known, "pending": o.pending,
+        "reasons": [{"kind": t.kind, "label": label(t), "value": round(t.value, 2),
+                     "icons": [champs.icon_url(c) for c in t.champions]} for t in o.terms[:top] if abs(t.value) >= 0.1],
+    }
+
+
+def record(ev: Evaluation, o: DraftOdds | None = None) -> dict:
     """Compact form of an evaluation for the store (backtesting)."""
     return {
+        "odds": round(o.win, 2) if o else None,
         "role": ev.role,
         "lanes": {str(c): l for c, l in ev.lanes.items()},
         "allies": [[s.champion_id, s.position, s.tentative] for s in ev.draft.allies if s.champion_id],

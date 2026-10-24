@@ -47,6 +47,7 @@ class Config:
     weights: dict[str, dict] = field(default_factory=dict)  # per-role overrides
     comfort: dict = field(default_factory=dict)  # overrides for DEFAULT_COMFORT, all roles
     comfort_only: bool = False  # only recommend champions you've played or have mastery on
+    odds: dict = field(default_factory=dict)  # draft win estimate weights, see scoring.DEFAULT_ODDS
 
     def weights_for(self, role: str) -> dict:
         w = default_weights(role)

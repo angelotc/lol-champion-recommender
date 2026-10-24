@@ -173,3 +173,25 @@ def test_ban_threats_weigh_likelihood_and_harm():
     assert order.index(11) > order.index(10)  # same harm, rarely picked
     assert t[-1].champion_id == 20 and t[-1].score < 0  # you beat it: not worth a ban
     assert ban_threats([leona], rows, w, k=500, exclude={10})[0].champion_id != 10
+
+
+def test_draft_odds_sums_both_sides():
+    from scoring import draft_odds
+    k = 500
+    # our bot laner is strong and beats their bot laner (measured from both sides)
+    ours = ChampStats(1, "bottom", 53.0, 10**6, avg_wr=50.0, matchups={"bottom": {2: Pair(55.0, 10**6, 2.0)}})
+    theirs = ChampStats(2, "bottom", 50.0, 10**6, avg_wr=50.0, matchups={"bottom": {1: Pair(48.0, 10**6, -2.0)}})
+    o = draft_odds({"bottom": (ours, False)}, {"bottom": (theirs, False)}, k)
+    # strength 3 x 0.5 + matchup mean(2, 2) x 1.0
+    assert o.win == pytest.approx(50 + 1.5 + 2.0, abs=0.01)
+    assert {t.kind for t in o.terms} == {"strength", "matchup"}
+    flipped = draft_odds({"bottom": (theirs, False)}, {"bottom": (ours, False)}, k)
+    assert flipped.win == pytest.approx(100 - o.win, abs=0.01)
+
+
+def test_draft_odds_hovers_count_half_and_clamp():
+    from scoring import draft_odds
+    strong = ChampStats(1, "top", 70.0, 10**6, avg_wr=50.0)
+    assert draft_odds({"top": (strong, True)}, {}, 500).win == pytest.approx(55.0, abs=0.01)
+    assert draft_odds({"top": (strong, False)}, {}, 500, {"strength": 5.0}).win == 75.0
+    assert draft_odds({}, {}, 500).win == 50.0

@@ -19,7 +19,7 @@ from data.store import Store
 from engine import BuildEvaluation, Evaluation, Recommender
 from paths import DATA_DIR
 from lcu import LcuClient
-from scoring import LANES, Comfort
+from scoring import LANES, Comfort, DraftOdds, draft_odds
 from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Event, Session, Stage
 
 SETTINGS = DATA_DIR / "settings.json"
@@ -57,6 +57,8 @@ class Controller:
         self.notice: tuple[str, str] | None = None  # (message, kind) shown instead of the stage view
         self.draft_id: int | None = None
         self.last_eval: Evaluation | None = None
+        self.last_odds: DraftOdds | None = None
+        self._stats_pending: set[tuple[int, str]] = set()
         self._build_cache: tuple[tuple, BuildEvaluation] | None = None
         self.tab: str | None = None        # "bans" | "picks" chosen by you during the ban phase
         self.lcu: Callable[[], LcuClient] | None = None  # client factory, set by the live source
@@ -148,10 +150,65 @@ class Controller:
                 if tabs.get("tab") == "build":
                     self.push(views.build(self.header(ev.role), self._build(ev), self.rec.champs, self.rec.assets) | tabs)
                     return
-                self.push(views.picks(self.header(ev.role), ev, self.rec.champs, s.enemy_lanes) | tabs)
+                odds = self._odds(ev)
+                self.last_odds = odds
+                self.push(views.picks(self.header(ev.role), ev, self.rec.champs, s.enemy_lanes)
+                          | tabs | {"odds": views.odds(odds, self.rec.champs)})
             except Exception:
                 log.exception("evaluate failed")
                 self.show_status("Error scoring draft (see app.log)", "error")
+
+    def _odds(self, ev: Evaluation) -> DraftOdds | None:
+        """Draft win estimate from the stats loaded so far; missing stats load in the background."""
+        ours_ids, theirs_ids = self.rec.odds_inputs(ev)
+        if not ours_ids and not theirs_ids:
+            return None
+        missing, sides = [], ({}, {})
+        for side, team in zip(sides, (ours_ids, theirs_ids)):
+            for lane, (cid, tent) in team.items():
+                st = self.rec.cached_lane_stats(cid, lane)
+                if st is False:
+                    missing.append((cid, lane))
+                elif st:
+                    side[lane] = (st, tent)
+        if missing:
+            self._load_stats(missing)
+        odds = draft_odds(sides[0], sides[1], self.cfg.k, self.cfg.odds, self.cfg.tentative_factor)
+        odds.known = sum(map(len, sides))
+        odds.pending = len(missing)
+        return odds
+
+    def _load_stats(self, need: list[tuple[int, str]]) -> None:
+        need = [n for n in need if n not in self._stats_pending]
+        if not need:
+            return
+        self._stats_pending |= set(need)
+
+        def run() -> None:
+            try:
+                list(self.rec.lola.fetch.map(lambda n: self.rec.lane_stats(*n), need))
+            except Exception:
+                log.exception("draft odds stats")
+            finally:
+                self._stats_pending -= set(need)
+            if self.lock.acquire(blocking=False):  # never wait: a render may be in progress
+                try:
+                    if self.session.stage in DRAFT_STAGES:
+                        self.render()
+                finally:
+                    self.lock.release()
+            else:
+                threading.Timer(0.5, self._retry_render).start()
+
+        threading.Thread(target=run, daemon=True, name="odds-stats").start()
+
+    def _retry_render(self) -> None:
+        if self.lock.acquire(blocking=False):
+            try:
+                if self.session.stage in DRAFT_STAGES:
+                    self.render()
+            finally:
+                self.lock.release()
 
     def _render_ingame(self) -> None:
         g = self.live
@@ -222,11 +279,11 @@ class Controller:
         if Event.LOCKED_IN in events and self.draft_id is not None and self.last_eval:
             ev = self.last_eval
             self._record(lambda: self.store.update_draft(self.draft_id, my_champ=s.draft.my_locked, role=ev.role))
-            self._record(lambda: self.store.save_recs(self.draft_id, "locked", views.record(ev)))
+            self._record(lambda: self.store.save_recs(self.draft_id, "locked", views.record(ev, self.last_odds)))
         if Event.DRAFT_ENDED in events and self.draft_id is not None:
             draft_id, ev = self.draft_id, self.last_eval
             if ev:
-                self._record(lambda: self.store.save_recs(draft_id, "final", views.record(ev)))
+                self._record(lambda: self.store.save_recs(draft_id, "final", views.record(ev, self.last_odds)))
             self._record(lambda: self.store.update_draft(draft_id, ended=time.time()))
             self.draft_id, self.last_eval = None, None
 

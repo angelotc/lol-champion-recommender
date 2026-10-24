@@ -54,6 +54,7 @@ class Recommender:
         # your record and mastery per champion for a role; set by the controller (live only)
         self.comfort: Callable[[str], dict[int, Comfort]] = lambda role: {}
         self._assets: Assets | None = None
+        self._stats: dict[tuple[str, int, str], ChampStats | None] = {}  # (tier, champ, lane)
         self._pool_locks: dict[tuple[str, str], threading.Lock] = {}
         self._locks_lock = threading.Lock()
 
@@ -149,6 +150,32 @@ class Recommender:
         )
         lanes = {cid: lane for lane, (cid, _) in allies.items()} | {cid: lane for lane, cid in enemies.items()}
         return Evaluation(draft, role, recs[: self.cfg.top_n], lanes, rates)
+
+    def lane_stats(self, cid: int, lane: str) -> ChampStats | None:
+        """Matchup and synergy stats for any champion in any lane at the current tier (blocking)."""
+        key = (self.tier, cid, lane)
+        if key not in self._stats:
+            pooled = self.pools.get((self.tier, lane), {}).get(cid)
+            self._stats[key] = pooled or self.lola.champ_stats(self.champs.slug(cid), lane)
+        return self._stats[key]
+
+    def cached_lane_stats(self, cid: int, lane: str) -> ChampStats | None | bool:
+        """Like lane_stats but never fetches: False when not loaded yet."""
+        key = (self.tier, cid, lane)
+        if key in self._stats:
+            return self._stats[key]
+        pooled = self.pools.get((self.tier, lane), {}).get(cid)
+        return pooled if pooled else False
+
+    def odds_inputs(self, ev: Evaluation) -> tuple[dict, dict]:
+        """(ours, theirs) as lane -> (champion id, tentative), including your own pick or hover."""
+        ours = {lane: (cid, tent) for cid, lane in ev.lanes.items() for s in ev.draft.allies
+                if s.champion_id == cid and not s.is_me for tent in [s.tentative]}
+        me = next((s for s in ev.draft.allies if s.is_me and s.champion_id), None)
+        if me:
+            ours[ev.role] = (me.champion_id, me.tentative)
+        theirs = {lane: (cid, False) for cid, lane in ev.lanes.items() if cid in ev.draft.enemies}
+        return ours, theirs
 
     def bans(self, draft: DraftState, pickable: set[int] | None = None) -> BanEvaluation:
         """Enemy champions worth banning, measured against your likely picks for this draft."""

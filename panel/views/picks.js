@@ -113,7 +113,30 @@
     });
   }
 
+  var KINDS={strength:"strong pick",matchup:"",synergy:"synergy"};
+  function renderOdds(o){
+    var box=$("odds");clear(box);box.classList.toggle("hidden",!o);
+    if(!o)return;
+    var l=el("div","ol");
+    l.appendChild(el("span","us","You "+o.win.toFixed(1)+"%"));
+    l.appendChild(el("span","mid","draft estimate · "+o.known+"/10"+(o.pending?" · loading "+o.pending:"")));
+    l.appendChild(el("span","them",(100-o.win).toFixed(1)+"% Them"));
+    box.appendChild(l);
+    var bar=el("div","bar"),fill=el("div");fill.style.width=o.win+"%";bar.appendChild(fill);box.appendChild(bar);
+    var why=el("div","why");
+    (o.reasons||[]).forEach(function(r){
+      var d=el("div");d.appendChild(el("b",cls(r.value),fmt(r.value)));
+      (r.icons||[]).forEach(function(u,i){if(i)d.appendChild(el("span",null,r.kind==="matchup"?"vs":"+"));d.appendChild(icon("",u))});
+      d.appendChild(el("span",null,(KINDS[r.kind]?KINDS[r.kind]+": ":"")+r.label));
+      why.appendChild(d);
+    });
+    box.appendChild(why);
+    box.title="Estimated from each champion's strength, lane matchups and synergy (shrunk by games). "+
+      "Uncalibrated until backtesting has enough of your games.";
+  }
+
   L.register("picks",{render:function(s){
+    renderOdds(s.odds);
     chipRow($("allies"),s.allies,"ally");
     renderEnemies(s.enemies);
     clear($("bans"));$("bansBox").classList.toggle("hidden",!(s.bans&&s.bans.length));

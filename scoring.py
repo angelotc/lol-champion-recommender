@@ -134,6 +134,89 @@ def assign_enemy_lanes(
 
 
 @dataclass
+class OddsTerm:
+    kind: str        # "strength", "matchup" or "synergy"
+    side: str        # "us" or "them": whose favour (a "them" term lowers your odds)
+    champions: tuple[int, ...]
+    lanes: tuple[str, ...]
+    value: float     # percentage points in your favour (negative = theirs)
+
+
+@dataclass
+class DraftOdds:
+    win: float                       # your estimated win %, 50 = even
+    terms: list[OddsTerm]
+    known: int                       # champions with stats counted, out of 10
+    pending: int = 0                 # champions whose stats are still loading
+
+
+DUO_LANES = {"bottom", "support"}
+DEFAULT_ODDS = {"strength": 0.5, "same_lane": 1.0, "duo": 0.7, "cross": 0.35, "synergy": 0.5, "clamp": 25.0}
+
+
+def _pair_weight(a: str, b: str, w: dict) -> float:
+    if a == b:
+        return w["same_lane"]
+    if a in DUO_LANES and b in DUO_LANES:
+        return w["duo"]
+    return w["cross"]
+
+
+def draft_odds(
+    ours: dict[str, tuple[ChampStats, bool]],
+    theirs: dict[str, tuple[ChampStats, bool]],
+    k: float,
+    weights: dict | None = None,
+    tentative_factor: float = 0.5,
+) -> DraftOdds:
+    """Estimated win % for your team from the champions picked so far (lane -> (stats, tentative)).
+
+    Additive in percentage points: each side's champions' own strength (shrunk wr - avg, damped
+    because summing five deltas overstates), every cross-team pair's matchup delta (taken from both
+    champions' sides and averaged, weighted by how much the lanes interact), and synergy between
+    teammates. Uncalibrated: backtesting (--backtest) is what tunes these weights.
+    """
+    w = DEFAULT_ODDS | (weights or {})
+    terms: list[OddsTerm] = []
+    tf = lambda *tents: tentative_factor if any(tents) else 1.0
+
+    for side, team, sign in (("us", ours, 1), ("them", theirs, -1)):
+        for lane, (s, tent) in team.items():
+            v = shrink(s.wr - (s.avg_wr if s.avg_wr is not None else 50.0), s.games, k) * w["strength"] * tf(tent) * sign
+            terms.append(OddsTerm("strength", "us" if v >= 0 else "them", (s.champion_id,), (lane,), v))
+        lanes = list(team.items())
+        for i, (la, (a, ta)) in enumerate(lanes):
+            for lb, (b, tb) in lanes[i + 1:]:
+                vals = []
+                for x, y, ly in ((a, b, lb), (b, a, la)):
+                    pair = x.synergies.get(ly, {}).get(y.champion_id)
+                    if pair is not None:
+                        d = pair.wr - x.wr if pair.delta is None else pair.delta
+                        vals.append(shrink(d, pair.games, k))
+                if vals:
+                    v = sum(vals) / len(vals) * w["synergy"] * tf(ta, tb) * sign
+                    terms.append(OddsTerm("synergy", "us" if v >= 0 else "them", (a.champion_id, b.champion_id), (la, lb), v))
+
+    for la, (a, ta) in ours.items():
+        for lb, (b, tb) in theirs.items():
+            vals = []
+            pa = a.matchups.get(lb, {}).get(b.champion_id)  # your champion vs theirs
+            if pa is not None:
+                vals.append(shrink(pa.wr - a.wr if pa.delta is None else pa.delta, pa.games, k))
+            pb = b.matchups.get(la, {}).get(a.champion_id)  # theirs vs yours, from their side
+            if pb is not None:
+                vals.append(-shrink(pb.wr - b.wr if pb.delta is None else pb.delta, pb.games, k))
+            if vals:
+                v = sum(vals) / len(vals) * _pair_weight(la, lb, w) * tf(ta, tb)
+                terms.append(OddsTerm("matchup", "us" if v >= 0 else "them", (a.champion_id, b.champion_id), (la, lb), v))
+
+    total = sum(t.value for t in terms)
+    win = max(50 - w["clamp"], min(50 + w["clamp"], 50 + total))
+    terms.sort(key=lambda t: abs(t.value), reverse=True)
+    return DraftOdds(win, terms, len(ours) + len(theirs))
+
+
+@dataclass
 class Threat:
     champion_id: int
     lane: str                 # the enemy lane where it hurts you most
