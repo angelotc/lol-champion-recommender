@@ -34,6 +34,7 @@ TITLE = "League Pick Helper"
 TIERS = {"master_plus": "Master+", "grandmaster_plus": "GM+", "challenger": "Challenger"}
 SETTINGS = DATA_DIR / "settings.json"
 LOW_DATA = 0.25  # below this share of possible matchups found, warn that the tier is thin
+FLEX = 10.0  # an enemy whose second most played lane is at least this % is marked as a flex pick
 MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT, WM_HOTKEY = 0x2, 0x4, 0x4000, 0x0312
 CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT = 0, 1, 2
 HANDLER_ROUTINE = ctypes.WINFUNCTYPE(w.BOOL, w.DWORD)
@@ -53,6 +54,9 @@ class Api:
     def set_tier(self, tier: str) -> None:
         self._app.set_tier(tier)
 
+    def set_enemy_lane(self, champion_id: int, lane: str) -> None:
+        self._app.set_enemy_lane(int(champion_id), lane)
+
 
 class App:
     def __init__(self, args):
@@ -66,6 +70,7 @@ class App:
         self.lock = threading.RLock()  # evaluation runs from the LCU thread and from pill clicks
         self.last_draft: tuple[DraftState, set[int] | None] | None = None
         self.frozen: DraftState | None = None  # draft as it was when you locked in
+        self.enemy_lanes: dict[int, str] = {}  # lanes you picked by hand for enemy flex picks
         self.last_status = ("Waiting for champ select...", "waiting")
 
     # -- page updates -----------------------------------------------------
@@ -103,6 +108,14 @@ class App:
                 log.warning("could not save settings")
             self.render()
 
+    def set_enemy_lane(self, champion_id: int, lane: str) -> None:
+        """Pin an enemy to a lane ("" = back to the inferred lane). A lane holds one champion."""
+        with self.lock:
+            self.enemy_lanes = {c: l for c, l in self.enemy_lanes.items() if c != champion_id and l != lane}
+            if lane in LANES:
+                self.enemy_lanes[champion_id] = lane
+            self.render()
+
     def render(self) -> None:
         """Re-score the last draft (or re-show the last status) with current settings."""
         with self.lock:
@@ -111,9 +124,9 @@ class App:
                 return
             draft, pickable = self.last_draft
             try:
-                ev = self.rec.evaluate(draft, pickable)
+                ev = self.rec.evaluate(draft, pickable, self.enemy_lanes)
                 if self.frozen:  # teams stay live, recommendations stay as they were at lock-in
-                    ev.recs = self.rec.evaluate(self.frozen, pickable).recs
+                    ev.recs = self.rec.evaluate(self.frozen, pickable, self.enemy_lanes).recs
                 self.show_eval(ev)
             except Exception:
                 log.exception("evaluate failed")
@@ -138,7 +151,7 @@ class App:
                                         "tentative": s.tentative, "is_me": s.is_me}
                 for s in d.allies if s.champion_id
             ],
-            "enemies": [champ(c) | {"lane": ev.lanes.get(c, "")} for c in d.enemies],
+            "enemies": [self._enemy(ev, c) | champ(c) for c in d.enemies],
             "bans": [champ(c) for c in sorted(d.bans)],
             "recs": [
                 champ(r.champion_id) | {
@@ -155,16 +168,26 @@ class App:
             ],
         })
 
+    def _enemy(self, ev: Evaluation, cid: int) -> dict:
+        rates = ev.enemy_rates.get(cid, {})
+        ranked = sorted(rates.values(), reverse=True)
+        return {
+            "id": cid, "lane": ev.lanes.get(cid, ""), "manual": cid in self.enemy_lanes,
+            "flex": len(ranked) > 1 and ranked[1] >= FLEX,
+            "rates": {l: round(rates.get(l, 0)) for l in LANES},
+        }
+
     # -- draft sources ----------------------------------------------------
     def on_session(self, session: dict | None, pickable: set[int] | None = None) -> None:
         with self.lock:
             if not session:
                 self.active, self.last_draft, self.frozen = False, None, None
+                self.enemy_lanes = {}
                 self.status("Waiting for champ select...")
                 return
             if not self.active:
                 self.user_hidden = False  # new draft: bring the panel back
-                self.frozen = None
+                self.frozen, self.enemy_lanes = None, {}
             self.active = True
             draft = parse_session(session)
             if draft.my_locked and not self.frozen:

@@ -91,3 +91,15 @@ def infer_enemy_lanes(
         if best is None or total > best[0]:
             best = (total, perm)
     return {l: c for c, l in zip(ids, best[1])} if best else {}
+
+
+def assign_enemy_lanes(
+    enemy_ids: list[int], lane_rates: dict[int, dict[str, float]], fixed: dict[int, str] | None = None
+) -> dict[str, int]:
+    """Lanes set by hand (champion id -> lane) win; everyone else is inferred into the lanes left."""
+    pinned: dict[str, int] = {}
+    for cid, lane in (fixed or {}).items():
+        if cid in enemy_ids and lane in LANES:
+            pinned[lane] = cid
+    rest = [c for c in enemy_ids if c not in pinned.values()]
+    return pinned | infer_enemy_lanes(rest, lane_rates, tuple(l for l in LANES if l not in pinned))

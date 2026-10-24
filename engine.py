@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 from champions import Champions
 from config import Config
 from lcu import DraftState
 from lolalytics import Lolalytics
-from scoring import LANES, ChampStats, Recommendation, infer_enemy_lanes, recommend
+from scoring import LANES, ChampStats, Recommendation, assign_enemy_lanes, infer_enemy_lanes, recommend
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ class Evaluation:
     role: str
     recs: list[Recommendation]
     lanes: dict[int, str]  # champion id -> assigned or inferred lane, for allies and enemies
+    enemy_rates: dict[int, dict[str, float]] = field(default_factory=dict)  # lane play rates, %
 
 
 class Recommender:
@@ -61,7 +62,10 @@ class Recommender:
     def _lane_rates(self, ids: list[int]) -> dict[int, dict[str, float]]:
         return {c: self.lola.lane_rates(self.champs.slug(c)) for c in ids}
 
-    def evaluate(self, draft: DraftState, pickable: set[int] | None = None) -> Evaluation:
+    def evaluate(
+        self, draft: DraftState, pickable: set[int] | None = None, enemy_lanes: dict[int, str] | None = None,
+    ) -> Evaluation:
+        """enemy_lanes: lanes you've set by hand for enemy picks (flex picks); the rest are inferred."""
         role = self.role_for(draft)
         if role is None:
             raise ValueError("no assigned role")
@@ -79,10 +83,11 @@ class Recommender:
             guess = infer_enemy_lanes([s.champion_id for s in unplaced], self._lane_rates([s.champion_id for s in unplaced]), free)
             tent = {s.champion_id: s.tentative for s in unplaced}
             allies |= {lane: (cid, tent[cid]) for lane, cid in guess.items()}
-        enemies = infer_enemy_lanes(draft.enemies, self._lane_rates(draft.enemies))
+        rates = self._lane_rates(draft.enemies)
+        enemies = assign_enemy_lanes(draft.enemies, rates, enemy_lanes)
         recs = recommend(
             candidates, allies, enemies, self.cfg.weights_for(role), self.cfg.k,
             tentative_factor=self.cfg.tentative_factor,
         )
         lanes = {cid: lane for lane, (cid, _) in allies.items()} | {cid: lane for lane, cid in enemies.items()}
-        return Evaluation(draft, role, recs[: self.cfg.top_n], lanes)
+        return Evaluation(draft, role, recs[: self.cfg.top_n], lanes, rates)

@@ -7,7 +7,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lcu import DraftState, parse_session
-from scoring import ChampStats, Pair, infer_enemy_lanes, recommend, shrink
+from scoring import ChampStats, Pair, assign_enemy_lanes, infer_enemy_lanes, recommend, shrink
 
 W = {"base": 1.0, "enemy": {"support": 1.0, "bottom": 1.0}, "ally": {"bottom": 1.0}}
 
@@ -140,3 +140,16 @@ def test_parse_session_my_lock():
             if a["type"] == "pick" and a["actorCellId"] == session["localPlayerCellId"]:
                 a.update(completed=True, championId=412)
     assert parse_session(session).my_locked == 412
+
+
+def test_manual_enemy_lane_overrides_inference():
+    # Hwei (1) is mostly mid; Ziggs (2) plays mid and bot. Saying Hwei is bot moves Ziggs to mid.
+    rates = {1: {"middle": 66, "bottom": 24}, 2: {"middle": 50, "bottom": 45}, 3: {"support": 90}}
+    assert assign_enemy_lanes([1, 2, 3], rates) == {"middle": 1, "bottom": 2, "support": 3}
+    res = assign_enemy_lanes([1, 2, 3], rates, {1: "bottom"})
+    assert res == {"bottom": 1, "middle": 2, "support": 3}
+
+
+def test_manual_enemy_lane_ignores_stale_and_bad_entries():
+    rates = {1: {"middle": 60}, 2: {"bottom": 60}}
+    assert assign_enemy_lanes([1, 2], rates, {9: "middle", 2: "nowhere"}) == {"middle": 1, "bottom": 2}

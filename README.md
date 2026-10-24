@@ -45,6 +45,12 @@ Edit `config.toml` to set:
 The first draft in a role each day loads that role's stats, about 60 requests and roughly 15 seconds;
 after that they come from cache.
 
+## Enemy lanes and flex picks
+The client doesn't say which lane each enemy plays, so lanes are guessed from each champion's play rates.
+Champions with a real second lane (10% or more of their games, e.g. Hwei mid/bot) get a gold dot. Click
+any enemy to pick their lane: the picker shows the play rate for each lane, and the other enemies are
+re-guessed around your choice. **Auto** goes back to the guess. Your choices reset each draft.
+
 ## Build an .exe
 ```
 uv run --group build pyinstaller league_helper.spec --noconfirm
