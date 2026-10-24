@@ -7,8 +7,6 @@ the League client.
 
 ![Live ranked champ select with the panel docked to the right of the League client: Nautilus locked in, picks frozen, top pick Maokai expanded to show its matchup and synergy deltas](docs/client.png)
 
-<img src="docs/panel.png" alt="Panel: tier pill, allies, enemies with inferred lanes, bans, and ranked support picks; the top pick is expanded to show each matchup delta, games, weighted value and base" width="300">
-
 Each score is the pick's baseline win rate plus weighted matchup deltas vs enemies and synergy deltas with allies;
 the lines under each pick show its two biggest contributions. Hover or click a pick to see every
 matchup and synergy behind its score: the delta, the games it's based on, and its weighted value.
