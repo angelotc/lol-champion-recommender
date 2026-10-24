@@ -6,7 +6,6 @@ requires-python = ">=3.13"
 dependencies = [
     "httpx>=0.28",
     "pywebview>=5",
-    "rich>=14",
     "websockets>=15",
 ]
 

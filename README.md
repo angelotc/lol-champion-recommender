@@ -1,8 +1,9 @@
 # LoL Champion Recommender
 
-Live champ select pick recommender for League of Legends (support-first). Reads the draft from the
-local League Client API, pulls master+ / last-14-days matchup and synergy stats from lolalytics,
-and ranks picks from your champion pool. Shows a panel docked beside the League client.
+Live champ select pick recommender for League of Legends. Reads the draft from the local League
+Client API, detects the role you're assigned, pulls master+ / last-14-days matchup and synergy stats
+from lolalytics, and ranks picks from your champion pool for that role. Shows a panel docked beside
+the League client.
 
 <img src="docs/panel.png" alt="Panel: allies, enemies with inferred lanes, bans, and ranked support picks with the matchups behind each score" width="300">
 
@@ -12,14 +13,27 @@ the lines under each pick show its two biggest contributions.
 ## Run
 ```
 uv sync
-uv run app.py                       # panel, live
-uv run main.py                      # terminal, live
-uv run main.py --record drafts/x.jsonl   # live + record the draft
+uv run app.py                            # live
+uv run app.py --record drafts/x.jsonl    # live + record the draft
 uv run app.py --replay drafts/x.jsonl    # replay a recorded draft
-uv run app.py --simulate --allies jinx,leesin --enemies nautilus,caitlyn --bans pyke
+uv run app.py --simulate --role support --allies jinx,leesin --enemies nautilus,caitlyn --bans pyke
 uv run pytest
 ```
-Ctrl+Shift+L toggles the panel. Edit `config.toml` for champion pool, lane weights and `k` (sample-size shrinkage).
+Ctrl+Shift+L toggles the panel.
+
+## Roles
+The role always comes from your assigned position in champ select (ranked and normal draft). Queues
+that don't assign positions (blind pick, ARAM) show a notice instead of recommendations.
+
+Edit `config.toml` to set:
+- **`[pools]`**: the champion pool for each role. Only these champions are ranked.
+- **Lane weights:** by default your lane opponent counts most, bot and support also weigh the enemy
+  duo and their own duo partner, and the jungler matters to every lane. Override them per role under
+  `[weights.<role>]`.
+- **`k`:** sample-size shrinkage. Lower it if rankings feel too flat with thin master+ samples.
+
+The first draft in a role each day loads that role's stats, about 60 requests and roughly 15 seconds;
+after that they come from cache.
 
 ## Build an .exe
 ```

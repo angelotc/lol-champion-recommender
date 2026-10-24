@@ -6,7 +6,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from lcu import parse_session
+from lcu import DraftState, parse_session
 from scoring import ChampStats, Pair, infer_enemy_lanes, recommend, shrink
 
 W = {"base": 1.0, "enemy": {"support": 1.0, "bottom": 1.0}, "ally": {"bottom": 1.0}}
@@ -81,3 +81,52 @@ def test_parse_session():
 def test_parse_session_defensive():
     d = parse_session({})
     assert d.allies == [] and d.bans == set() and d.my_position == ""
+
+
+def test_default_weights_by_role():
+    from config import default_weights
+
+    sup = default_weights("support")
+    assert sup["enemy"]["support"] == sup["enemy"]["bottom"] == 1.0
+    assert sup["ally"]["bottom"] == 1.0 and "support" not in sup["ally"]
+    mid = default_weights("middle")
+    assert mid["enemy"]["middle"] == 1.0 and mid["enemy"]["jungle"] == 0.5 and mid["enemy"]["top"] == 0.3
+    assert max(mid["ally"].values()) == 0.5  # no duo partner; jungle highest
+    jg = default_weights("jungle")
+    assert jg["enemy"]["jungle"] == 1.0 and set(jg["ally"].values()) == {0.5}
+
+
+def test_weights_override_merges():
+    from config import Config
+
+    cfg = Config(weights={"middle": {"enemy": {"jungle": 0.9}}})
+    w = cfg.weights_for("middle")
+    assert w["enemy"]["jungle"] == 0.9 and w["enemy"]["middle"] == 1.0 and w["base"] == 1.0
+
+
+def test_default_weights_by_role():
+    from config import default_weights
+
+    sup = default_weights("support")
+    assert sup["enemy"]["support"] == sup["enemy"]["bottom"] == 1.0
+    assert sup["ally"]["bottom"] == 1.0 and "support" not in sup["ally"]
+    mid = default_weights("middle")
+    assert mid["enemy"]["middle"] == 1.0 and mid["enemy"]["jungle"] == 0.5 and mid["enemy"]["top"] == 0.3
+    assert max(mid["ally"].values()) == 0.5  # no duo partner; jungle highest
+    jg = default_weights("jungle")
+    assert jg["enemy"]["jungle"] == 1.0 and set(jg["ally"].values()) == {0.5}
+
+
+def test_weights_override_merges():
+    from config import Config
+
+    cfg = Config(weights={"middle": {"enemy": {"jungle": 0.9}}})
+    w = cfg.weights_for("middle")
+    assert w["enemy"]["jungle"] == 0.9 and w["enemy"]["middle"] == 1.0 and w["base"] == 1.0
+
+
+def test_role_comes_from_assignment_only():
+    from engine import Recommender
+
+    assert Recommender.role_for(DraftState(my_position="middle")) == "middle"
+    assert Recommender.role_for(DraftState(my_position="")) is None

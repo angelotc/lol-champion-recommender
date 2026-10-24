@@ -1,8 +1,9 @@
 """Desktop panel: docks beside the League client during champ select.
 
   uv run app.py                          live
+  uv run app.py --record drafts/x.jsonl  live, and save every session update for replay
   uv run app.py --replay drafts/x.jsonl  replay a recorded draft (panel always shown)
-  uv run app.py --simulate --allies jinx --enemies nautilus,caitlyn
+  uv run app.py --simulate --role middle --allies jinx --enemies syndra,leesin
 
 Ctrl+Shift+L toggles the panel.
 """
@@ -25,6 +26,7 @@ from config import load_config
 from engine import Evaluation, Recommender
 from lcu import DraftState, LcuClient, Slot, parse_session, read_lockfile, watch_session
 from paths import DATA_DIR, RESOURCES
+from scoring import LANES
 
 TITLE = "League Pick Helper"
 TIER_NAMES = {"master_plus": "Master+", "emerald_plus": "Emerald+", "platinum_plus": "Platinum+"}
@@ -63,15 +65,15 @@ class App:
     def status(self, message: str, status: str = "waiting") -> None:
         self.push(self._header() | {"status": status, "message": message})
 
-    def _header(self) -> dict:
-        cfg = self.rec.cfg if self.rec else load_config()
-        return {"role": cfg.role, "tier": TIER_NAMES.get(cfg.tier, cfg.tier), "days": cfg.days}
+    def _header(self, role: str | None = None) -> dict:
+        cfg = self.rec.cfg if self.rec else load_config(self.args.config)
+        return {"role": role or "", "tier": TIER_NAMES.get(cfg.tier, cfg.tier), "days": cfg.days}
 
     def show_eval(self, ev: Evaluation) -> None:
         ch = self.rec.champs
         champ = lambda cid: {"name": ch.name(cid), "icon": ch.icon_url(cid)}
         d = ev.draft
-        self.push(self._header() | {
+        self.push(self._header(ev.role) | {
             "status": "active",
             "message": "",
             "allies": [
@@ -105,8 +107,12 @@ class App:
         if not self.active:
             self.user_hidden = False  # new draft: bring the panel back
         self.active = True
+        draft = parse_session(session)
+        if self.rec.role_for(draft) is None:
+            self.status("No assigned role in this queue - recommendations need a position (draft or ranked).")
+            return
         try:
-            self.show_eval(self.rec.evaluate(parse_session(session), pickable))
+            self.show_eval(self.rec.evaluate(draft, pickable))
         except Exception:
             log.exception("evaluate failed")
             self.status("Error scoring draft (see app.log)", "error")
@@ -114,9 +120,15 @@ class App:
     def run_live(self) -> None:
         pickable: set[int] = set()
         lockfile = self.rec.cfg.lockfile
+        record: Path | None = self.args.record
+        if record:
+            record.parent.mkdir(parents=True, exist_ok=True)
 
         def handle(session: dict | None) -> None:
             nonlocal pickable
+            if record and session:
+                with record.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps({"t": time.time(), "session": session}) + "\n")
             if not session:
                 pickable = set()
             elif not pickable:
@@ -132,7 +144,7 @@ class App:
         asyncio.run(watch_session(lambda: read_lockfile(lockfile), handle))
 
     def run_replay(self, path: Path) -> None:
-        entries = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+        entries = [json.loads(l) for l in path.read_text(encoding="utf-8-sig").splitlines() if l.strip()]
         for e in entries:
             self.on_session(e["session"])
             time.sleep(self.args.delay)
@@ -142,7 +154,7 @@ class App:
         allies = [Slot(c, "", False, False) for c in ids(self.args.allies)]
         enemies = ids(self.args.enemies)
         draft = DraftState(
-            my_position=self.rec.cfg.role, allies=allies, enemies=enemies,
+            my_position=self.args.role, allies=allies, enemies=enemies,
             bans=set(ids(self.args.bans)), picked={s.champion_id for s in allies} | set(enemies),
         )
         self.active = True
@@ -191,9 +203,7 @@ class App:
         try:
             self.status("Loading champion data...")
             self.rec = Recommender(load_config(self.args.config))
-            missing = self.rec.prefetch(lambda m: self.status(m))
-            if missing:
-                log.warning("no lolalytics data for %s", missing)
+            self.rec.progress = self.status
             if self.args.simulate:
                 self.run_simulate()
             elif self.args.replay:
@@ -217,13 +227,17 @@ class App:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config")
-    ap.add_argument("--replay", type=Path)
+    ap.add_argument("--record", type=Path, help="append each live session update to this .jsonl file")
+    ap.add_argument("--replay", type=Path, help="replay a recorded .jsonl draft")
     ap.add_argument("--delay", type=float, default=1.0)
     ap.add_argument("--simulate", action="store_true")
+    ap.add_argument("--role", choices=LANES, help="simulate: your assigned role")
     ap.add_argument("--allies", default="")
     ap.add_argument("--enemies", default="")
     ap.add_argument("--bans", default="")
     args = ap.parse_args()
+    if args.simulate and not args.role:
+        ap.error("--simulate needs --role")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
         filename=DATA_DIR / "app.log", level=logging.INFO,
