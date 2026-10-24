@@ -28,7 +28,7 @@ def default_weights(role: str) -> dict:
 
 @dataclass
 class Config:
-    pools: dict[str, list[str]] = field(default_factory=dict)
+    min_pick_rate: float = 1.0  # % of games in the role; who counts as a candidate
     tier: str = "master_plus"
     days: int = 14
     queue: str = "ranked"

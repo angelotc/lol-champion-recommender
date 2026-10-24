@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -11,6 +12,7 @@ from lolalytics import Lolalytics
 from scoring import LANES, ChampStats, Recommendation, assign_enemy_lanes, infer_enemy_lanes, recommend
 
 log = logging.getLogger(__name__)
+WORKERS = 6  # parallel lolalytics requests while loading a role
 
 
 @dataclass
@@ -44,20 +46,29 @@ class Recommender:
         self.lola.tier = value
 
     def pool(self, role: str) -> dict[int, ChampStats]:
-        """Stats for the role's champion pool at the current tier, loaded on first use."""
+        """Stats at the current tier for every champion played enough in the role, loaded on first use."""
         key = (self.tier, role)
         if key not in self.pools:
-            pool = {}
-            for slug in self.cfg.pools.get(role, []):
-                self.progress(f"Loading {role} stats: {slug} ({self.tier}, {self.cfg.days} days)...")
-                cid = self.champs.id_from_slug(slug)  # accepts names like "Lee Sin"
-                s = self.lola.champ_stats(self.champs.slug(cid) if cid else slug, role)
-                if s is None:
-                    log.warning("no lolalytics data for %s in %s at %s", slug, role, self.tier)
-                    continue
-                pool[s.champion_id] = s
+            ids = self.candidates(role)
+            pool: dict[int, ChampStats] = {}
+            label = f"{role} stats ({self.tier}, {self.cfg.days} days)"
+            self.progress(f"Loading {label}: 0/{len(ids)}...")
+            with ThreadPoolExecutor(WORKERS) as ex:
+                jobs = ex.map(lambda c: (c, self.lola.champ_stats(self.champs.slug(c), role)), ids)
+                for i, (cid, s) in enumerate(jobs, 1):
+                    self.progress(f"Loading {label}: {i}/{len(ids)}...")
+                    if s is None:
+                        log.warning("no lolalytics data for %s in %s at %s", self.champs.slug(cid), role, self.tier)
+                    else:
+                        pool[s.champion_id] = s
             self.pools[key] = pool
         return self.pools[key]
+
+    def candidates(self, role: str) -> list[int]:
+        """Champions with at least min_pick_rate % pick rate in the role on lolalytics' tier list."""
+        rows, known = self.lola.tier_list(role), set(self.champs.all_ids())
+        ids = [c for c, r in rows.items() if float(r.get("pr") or 0) >= self.cfg.min_pick_rate and c in known]
+        return sorted(ids, key=lambda c: -float(rows[c].get("pr") or 0))
 
     def _lane_rates(self, ids: list[int]) -> dict[int, dict[str, float]]:
         return {c: self.lola.lane_rates(self.champs.slug(c)) for c in ids}

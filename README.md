@@ -2,7 +2,7 @@
 
 Live champ select pick recommender for League of Legends. Reads the draft from the local League
 Client API, detects the role you're assigned, pulls last-14-days matchup and synergy stats from
-lolalytics, and ranks picks from your champion pool for that role. Shows a panel docked beside
+lolalytics, and ranks every viable champion you own for that role. Shows a panel docked beside
 the League client.
 
 <img src="docs/panel.png" alt="Panel: tier pill, allies, enemies with inferred lanes, bans, and ranked support picks; the top pick is expanded to show each matchup delta, games, weighted value and base" width="300">
@@ -36,14 +36,16 @@ The role always comes from your assigned position in champ select (ranked and no
 that don't assign positions (blind pick, ARAM) show a notice instead of recommendations.
 
 Edit `config.toml` to set:
-- **`[pools]`**: the champion pool for each role. Only these champions are ranked.
+- **`min_pick_rate`** (default 1.0): candidates are every champion on lolalytics' tier list for your
+  role with at least this % pick rate (Master+, 14 days), narrowed to champions you own. About 35-50
+  per role at 1%. Lower it to include off-meta picks.
 - **Lane weights:** by default your lane opponent counts most, bot and support also weigh the enemy
   duo and their own duo partner, and the jungler matters to every lane. Override them per role under
   `[weights.<role>]`.
 - **`k`:** sample-size shrinkage. Lower it if rankings feel too flat with thin master+ samples.
 
-The first draft in a role each day loads that role's stats, about 60 requests and roughly 15 seconds;
-after that they come from cache.
+The first draft in a role each day loads stats for that role's candidates, about 6 requests each,
+6 at a time, around 10-30 seconds; after that they come from cache.
 
 ## Enemy lanes and flex picks
 The client doesn't say which lane each enemy plays, so lanes are guessed from each champion's play rates.

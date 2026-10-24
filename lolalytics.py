@@ -3,6 +3,7 @@
 Endpoints may change without notice; keep all knowledge of them in this module.
 - ep=counter: champion `c` in `lane`; matchups vs enemies in `vslane`, plus stats.lanes
 - ep=build-team: synergy with allies, keyed by ally lane (own lane omitted)
+- ep=list: the tier list for `lane`, every champion with rank, pick rate and games
 `patch=<small int>` means a rolling window of that many days.
 """
 from __future__ import annotations
@@ -21,7 +22,7 @@ BASE = "https://a1.lolalytics.com/mega/"
 CACHE_DIR = paths.CACHE_DIR / "lolalytics"
 HEADERS = {"User-Agent": "Mozilla/5.0 (league-analysis pick helper)"}
 TTL = 24 * 3600
-LANE_RATE_TIER = "master_plus"  # enough games to tell which lane a champion plays
+LANE_RATE_TIER = "master_plus"  # enough games to tell which lane a champion plays (and who's viable)
 
 
 def _games(stats: dict) -> int:
@@ -74,6 +75,11 @@ class Lolalytics:
         # stats.lanes is lane-independent; reuse any cached lane query
         data = self.counters(slug, "middle", "middle", tier=LANE_RATE_TIER)
         return (data.get("stats") or {}).get("lanes") or {}
+
+    def tier_list(self, lane: str, tier: str = LANE_RATE_TIER) -> dict[int, dict]:
+        """Champion id -> tier list row (rank, tier, pr, wr, games, ...) for champions played in `lane`."""
+        rows = self._get(ep="list", lane=lane, tier=tier).get("cid") or {}
+        return {int(cid): row for cid, row in rows.items() if isinstance(row, dict)}
 
     def champ_stats(self, slug: str, lane: str) -> ChampStats | None:
         matchups: dict[str, dict[int, Pair]] = {}

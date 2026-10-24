@@ -1,6 +1,9 @@
 # League champ-select pick recommender config
 
-# Picks are scored for the role you're assigned in champ select, using that role's pool below.
+# Picks are scored for the role you're assigned in champ select. Candidates are every champion on
+# lolalytics' tier list for that role with at least `min_pick_rate` % pick rate (Master+, 14 days),
+# narrowed to the champions you own.
+min_pick_rate = 1.0
 tier = "master_plus"
 # Rolling window in days (not a specific patch)
 days = 14
@@ -12,14 +15,6 @@ k = 500
 tentative_factor = 0.5
 top_n = 8
 lockfile = 'C:\Riot Games\League of Legends\lockfile'
-
-# Candidate pool per role (lolalytics slugs or champion names); only these are ranked
-[pools]
-top = ["aatrox", "ksante", "renekton", "jax", "camille", "gnar", "ornn", "darius", "garen", "sion"]
-jungle = ["leesin", "viego", "jarvaniv", "xinzhao", "vi", "graves", "kindred", "sejuani", "maokai", "khazix"]
-middle = ["ahri", "syndra", "orianna", "sylas", "yone", "azir", "viktor", "akali", "taliyah", "galio"]
-bottom = ["jinx", "kaisa", "ezreal", "caitlyn", "jhin", "ashe", "varus", "xayah", "zeri", "smolder"]
-support = ["thresh", "nautilus", "leona", "lulu", "nami", "milio", "karma", "braum", "rell", "rakan"]
 
 # Weights default per role: your lane opponent counts most, bot/support also weigh the enemy
 # duo and their own duo partner, jungle matters to every lane. Override per role, e.g.:
