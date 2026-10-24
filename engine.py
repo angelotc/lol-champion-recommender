@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Callable
 
-from champions import Champions
+from data.champions import Champions
 from config import Config
 from lcu import DraftState
-from lolalytics import Lolalytics
+from data.fetch import Fetcher
+from data.lolalytics import Lolalytics
 from scoring import LANES, ChampStats, Recommendation, assign_enemy_lanes, infer_enemy_lanes, recommend
 
 log = logging.getLogger(__name__)
-WORKERS = 6  # parallel lolalytics requests while loading a role
 
 
 @dataclass
@@ -25,10 +24,10 @@ class Evaluation:
 
 
 class Recommender:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, fetcher: Fetcher | None = None):
         self.cfg = cfg
         self.champs = Champions.load()
-        self.lola = Lolalytics(cfg.tier, cfg.days)
+        self.lola = Lolalytics(cfg.tier, cfg.days, fetcher)
         self.pools: dict[tuple[str, str], dict[int, ChampStats]] = {}  # (tier, role) -> pool
         self.progress: Callable[[str], None] = lambda _: None
 
@@ -53,14 +52,13 @@ class Recommender:
             pool: dict[int, ChampStats] = {}
             label = f"{role} stats ({self.tier}, {self.cfg.days} days)"
             self.progress(f"Loading {label}: 0/{len(ids)}...")
-            with ThreadPoolExecutor(WORKERS) as ex:
-                jobs = ex.map(lambda c: (c, self.lola.champ_stats(self.champs.slug(c), role)), ids)
-                for i, (cid, s) in enumerate(jobs, 1):
-                    self.progress(f"Loading {label}: {i}/{len(ids)}...")
-                    if s is None:
-                        log.warning("no lolalytics data for %s in %s at %s", self.champs.slug(cid), role, self.tier)
-                    else:
-                        pool[s.champion_id] = s
+            jobs = self.lola.fetch.map(lambda c: (c, self.lola.champ_stats(self.champs.slug(c), role)), ids)
+            for i, (cid, s) in enumerate(jobs, 1):
+                self.progress(f"Loading {label}: {i}/{len(ids)}...")
+                if s is None:
+                    log.warning("no lolalytics data for %s in %s at %s", self.champs.slug(cid), role, self.tier)
+                else:
+                    pool[s.champion_id] = s
             self.pools[key] = pool
         return self.pools[key]
 

@@ -1,4 +1,4 @@
-"""Desktop panel: docks beside the League client during champ select.
+"""Desktop panel: docks beside the League client from lobby through champ select.
 
   uv run app.py                          live
   uv run app.py --record drafts/x.jsonl  live, and save every session update for replay
@@ -18,29 +18,21 @@ import os
 import threading
 import time
 from ctypes import wintypes as w
-from dataclasses import replace
 from pathlib import Path
 
 import webview
 
 import tracker
 from config import load_config
-from engine import Evaluation, Recommender
-from lcu import DraftState, LcuClient, Slot, parse_session, read_lockfile, watch_session
+from controller import Controller
+from data.store import Store
+from lcu import DraftState, LcuClient, Slot, read_lockfile, watch_session
 from paths import DATA_DIR, RESOURCES
 from scoring import LANES
+from state import DRAFT_STAGES, PRE_DRAFT_STAGES
 
 TITLE = "League Pick Helper"
-TIERS = {"master_plus": "Master+", "grandmaster_plus": "GM+", "challenger": "Challenger"}
-SETTINGS = DATA_DIR / "settings.json"
-LOW_DATA = 0.25  # below this share of possible matchups found, warn that the tier is thin
-# Before champ select the panel shows where you are; it stays hidden in game and on other screens.
-QUEUE_PHASES = {
-    "Lobby": "In lobby - waiting for you to queue...",
-    "Matchmaking": "In queue - waiting for a match...",
-    "ReadyCheck": "Match found!",
-}
-FLEX = 10.0  # an enemy whose second most played lane is at least this % is marked as a flex pick
+VISIBLE_STAGES = DRAFT_STAGES | PRE_DRAFT_STAGES  # never in game, loading or post-game
 MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT, WM_HOTKEY = 0x2, 0x4, 0x4000, 0x0312
 CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT = 0, 1, 2
 HANDLER_ROUTINE = ctypes.WINFUNCTYPE(w.BOOL, w.DWORD)
@@ -55,29 +47,22 @@ class Api:
         self._app = app
 
     def hide(self) -> None:
-        self._app.user_hidden = True
+        self._app.ctl.user_hidden = True
 
     def set_tier(self, tier: str) -> None:
-        self._app.set_tier(tier)
+        self._app.ctl.set_tier(tier)
 
     def set_enemy_lane(self, champion_id: int, lane: str) -> None:
-        self._app.set_enemy_lane(int(champion_id), lane)
+        self._app.ctl.set_enemy_lane(int(champion_id), lane)
 
 
 class App:
     def __init__(self, args):
         self.args = args
         self.always_show = bool(args.replay or args.simulate)
-        self.active = False  # in champ select
-        self.phase: str | None = None  # gameflow phase from the client; None until known
-        self.user_hidden = False
         self.window: webview.Window | None = None
-        self.rec: Recommender | None = None
-        self.lock = threading.RLock()  # evaluation runs from the LCU thread and from pill clicks
-        self.last_draft: tuple[DraftState, set[int] | None] | None = None
-        self.frozen: DraftState | None = None  # draft as it was when you locked in
-        self.enemy_lanes: dict[int, str] = {}  # lanes you picked by hand for enemy flex picks
-        self.last_status = ("Waiting for champ select...", "waiting")
+        live = not self.always_show
+        self.ctl = Controller(load_config(args.config), self.push, Store() if live else None)
 
     # -- page updates -----------------------------------------------------
     def js(self, code: str) -> None:
@@ -87,135 +72,16 @@ class App:
     def push(self, state: dict) -> None:
         self.js(f"window.updateState&&updateState({json.dumps(state)})")
 
-    def status(self, message: str, status: str = "waiting", remember: bool = True) -> None:
-        if remember:
-            self.last_status = (message, status)
-        self.push(self._header() | {"status": status, "message": message})
-
-    def progress(self, message: str) -> None:
-        self.status(message, remember=False)
-
-    def _header(self, role: str | None = None) -> dict:
-        cfg = self.rec.cfg if self.rec else load_config(self.args.config)
-        tier = self.rec.tier if self.rec else cfg.tier
-        return {
-            "role": role or "", "tier": TIERS.get(tier, tier), "tier_id": tier, "days": cfg.days,
-            "tiers": [{"id": k, "label": v} for k, v in TIERS.items()],
-        }
-
-    def set_tier(self, tier: str) -> None:
-        if tier not in TIERS or not self.rec:
-            return
-        with self.lock:
-            self.rec.tier = tier
-            try:
-                SETTINGS.write_text(json.dumps({"tier": tier}), encoding="utf-8")
-            except OSError:
-                log.warning("could not save settings")
-            self.render()
-
-    def set_enemy_lane(self, champion_id: int, lane: str) -> None:
-        """Pin an enemy to a lane ("" = back to the inferred lane). A lane holds one champion."""
-        with self.lock:
-            self.enemy_lanes = {c: l for c, l in self.enemy_lanes.items() if c != champion_id and l != lane}
-            if lane in LANES:
-                self.enemy_lanes[champion_id] = lane
-            self.render()
-
-    def render(self) -> None:
-        """Re-score the last draft (or re-show the last status) with current settings."""
-        with self.lock:
-            if not (self.active and self.last_draft):
-                self.status(*self.last_status)
-                return
-            draft, pickable = self.last_draft
-            try:
-                ev = self.rec.evaluate(draft, pickable, self.enemy_lanes)
-                if self.frozen:  # teams stay live, recommendations stay as they were at lock-in
-                    ev.recs = self.rec.evaluate(self.frozen, pickable, self.enemy_lanes).recs
-                self.show_eval(ev)
-            except Exception:
-                log.exception("evaluate failed")
-                self.status("Error scoring draft (see app.log)", "error")
-
-    def show_eval(self, ev: Evaluation) -> None:
-        ch = self.rec.champs
-        champ = lambda cid: {"name": ch.name(cid), "icon": ch.icon_url(cid)}
-        d = ev.draft
-        found = sum(1 for r in ev.recs for c in r.contributions if c.label == "vs")
-        possible = len(ev.recs) * len(d.enemies)
-        note = ""
-        if possible and found / possible < LOW_DATA:
-            note = "Few matchups at this tier: scores lean on overall win rate."
-        self.push(self._header(ev.role) | {
-            "status": "active",
-            "message": "",
-            "note": note,
-            "locked": champ(d.my_locked) if d.my_locked else None,
-            "allies": [
-                champ(s.champion_id) | {"lane": s.position or ev.lanes.get(s.champion_id, ""),
-                                        "tentative": s.tentative, "is_me": s.is_me}
-                for s in d.allies if s.champion_id
-            ],
-            "enemies": [self._enemy(ev, c) | champ(c) for c in d.enemies],
-            "bans": [champ(c) for c in sorted(d.bans)],
-            "recs": [
-                champ(r.champion_id) | {
-                    "score": round(r.score, 2), "base": round(r.base, 2),
-                    "contributions": [
-                        champ(c.champion_id) | {
-                            "kind": c.label, "lane": c.lane, "delta": round(c.delta, 2),
-                            "games": c.games, "weighted": round(c.weighted, 2), "tentative": c.tentative,
-                        }
-                        for c in sorted(r.contributions, key=lambda c: abs(c.weighted), reverse=True)
-                    ],
-                }
-                for r in ev.recs
-            ],
-        })
-
-    def _enemy(self, ev: Evaluation, cid: int) -> dict:
-        rates = ev.enemy_rates.get(cid, {})
-        ranked = sorted(rates.values(), reverse=True)
-        return {
-            "id": cid, "lane": ev.lanes.get(cid, ""), "manual": cid in self.enemy_lanes,
-            "flex": len(ranked) > 1 and ranked[1] >= FLEX,
-            "rates": {l: round(rates.get(l, 0)) for l in LANES},
-        }
-
     # -- draft sources ----------------------------------------------------
-    def on_session(self, session: dict | None, pickable: set[int] | None = None) -> None:
-        with self.lock:
-            if not session:
-                self.active, self.last_draft, self.frozen = False, None, None
-                self.enemy_lanes = {}
-                self.status("Waiting for champ select...")
-                return
-            if not self.active:
-                self.user_hidden = False  # new draft: bring the panel back
-                self.frozen, self.enemy_lanes = None, {}
-            self.active = True
-            draft = parse_session(session)
-            if draft.my_locked and not self.frozen:
-                # snapshot without your own pick excluded, so your champion stays in the list
-                self.frozen = replace(draft, picked=draft.picked - {draft.my_locked}, bans=set(draft.bans))
-            elif not draft.my_locked:
-                self.frozen = None
-            if self.rec.role_for(draft) is None:
-                self.last_draft = None
-                self.status("No assigned role in this queue - recommendations need a position (draft or ranked).")
-                return
-            self.last_draft = (draft, pickable)
-            self.render()
-
     def run_live(self) -> None:
+        ctl = self.ctl
         pickable: set[int] = set()
-        lockfile = self.rec.cfg.lockfile
+        lockfile = ctl.cfg.lockfile
         record: Path | None = self.args.record
         if record:
             record.parent.mkdir(parents=True, exist_ok=True)
 
-        def handle(session: dict | None) -> None:
+        def on_session(session: dict | None) -> None:
             nonlocal pickable
             if record and session:
                 with record.open("a", encoding="utf-8") as f:
@@ -229,37 +95,33 @@ class App:
                     client.close()
                 except Exception:
                     pass
-            self.on_session(session, pickable)
+            ctl.on_session(session, pickable)
 
         def on_phase(phase: str) -> None:
-            if phase != self.phase:
-                log.info("gameflow phase: %s", phase)
-            self.phase = phase
-            if phase != "ChampSelect":
-                handle(None)  # don't rely on the session's Delete event to end the draft
-                if phase in QUEUE_PHASES:
-                    self.status(QUEUE_PHASES[phase])
+            ctl.idle_message = "Waiting for champ select..."  # connected (the panel is hidden when idle)
+            ctl.on_phase(phase)
 
-        self.status("Waiting for the League client...")
-        asyncio.run(watch_session(lambda: read_lockfile(lockfile), handle, on_phase=on_phase))
+        ctl.render()
+        asyncio.run(watch_session(lambda: read_lockfile(lockfile), on_session, on_phase=on_phase))
 
     def run_replay(self, path: Path) -> None:
         entries = [json.loads(l) for l in path.read_text(encoding="utf-8-sig").splitlines() if l.strip()]
         for e in entries:
-            self.on_session(e["session"])
+            self.ctl.on_session(e["session"])
             time.sleep(self.args.delay)
 
     def run_simulate(self) -> None:
-        ids = lambda csv: [c for n in csv.split(",") if n.strip() and (c := self.rec.champs.id_from_slug(n))]
+        ctl = self.ctl
+        ids = lambda csv: [c for n in csv.split(",") if n.strip() and (c := ctl.rec.champs.id_from_slug(n))]
         allies = [Slot(c, "", False, False) for c in ids(self.args.allies)]
         enemies = ids(self.args.enemies)
         draft = DraftState(
             my_position=self.args.role, allies=allies, enemies=enemies,
             bans=set(ids(self.args.bans)), picked={s.champion_id for s in allies} | set(enemies),
         )
-        self.active = True
-        self.last_draft = (draft, None)
-        self.render()
+        with ctl.lock:
+            ctl.session.draft = draft
+            ctl.render()
 
     # -- window placement -------------------------------------------------
     def track(self) -> None:
@@ -274,9 +136,9 @@ class App:
                 focused = self.always_show or tracker.foreground_root() in (client, panel)
             elif self.always_show:
                 placement, focused = tracker.standalone(tracker.primary_work_area()), True
-            in_draft = self.always_show or (self.active and self.phase in (None, "ChampSelect")) or self.phase in QUEUE_PHASES
+            wanted = self.always_show or self.ctl.session.stage in VISIBLE_STAGES
             visible = bool(
-                panel and placement and focused and in_draft and not self.user_hidden
+                panel and placement and focused and wanted and not self.ctl.user_hidden
                 and (self.always_show or not tracker.game_running())  # never over or beside the game
             )
             if visible and (not shown or placement != last):
@@ -298,7 +160,7 @@ class App:
         msg = w.MSG()
         while ctypes.windll.user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
             if msg.message == WM_HOTKEY:
-                self.user_hidden = not self.user_hidden
+                self.ctl.user_hidden = not self.ctl.user_hidden
 
     # -- startup ----------------------------------------------------------
     def boot(self) -> None:
@@ -306,10 +168,7 @@ class App:
         for target in (self.track, self.hotkey):
             threading.Thread(target=target, daemon=True).start()
         try:
-            self.status("Loading champion data...")
-            self.rec = Recommender(load_config(self.args.config))
-            self.rec.tier = self._saved_tier() or self.rec.tier
-            self.rec.progress = self.progress
+            self.ctl.boot()
             if self.args.simulate:
                 self.run_simulate()
             elif self.args.replay:
@@ -318,15 +177,7 @@ class App:
                 self.run_live()
         except Exception:
             log.exception("fatal")
-            self.status("Something went wrong (see app.log)", "error")
-
-    @staticmethod
-    def _saved_tier() -> str | None:
-        try:
-            tier = json.loads(SETTINGS.read_text(encoding="utf-8")).get("tier")
-        except (OSError, ValueError):
-            return None
-        return tier if tier in TIERS else None
+            self.ctl.fail("Something went wrong (see app.log)")
 
     def run(self) -> None:
         tracker.make_dpi_aware()

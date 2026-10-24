@@ -61,6 +61,17 @@ uv run --group build pyinstaller league_helper.spec --noconfirm
 ```
 Output: `dist/LeaguePickHelper/`. When packaged, config/cache/logs live in `%LOCALAPPDATA%\league-analysis\`.
 
+## Layout
+- `app.py`: window, docking and hotkeys. `controller.py` turns client updates into panel views
+  and records drafts; `state.py` tracks where you are (lobby, queue, ban, pick, locked, in game).
+- `engine.py` + `scoring.py`: candidates and scores. `views.py`: what the panel is sent.
+- `data/`: lolalytics (with matchup builds read from the site's pages), Data Dragon, the shared
+  fetcher (rate limit, de-duplication) and cache, and `store.py`, a SQLite file in
+  `%LOCALAPPDATA%\league-analysis\store.sqlite` that records every draft for backtesting.
+- `panel/`: `index.html` + `panel.css`, `js/core.js` (helpers, view router), one file per view in
+  `views/`, and `js/demo.js` (open `index.html?demo` in a browser).
+- `scripts/render_panel.py`: headless screenshot of any view, for checking UI changes.
+
 ## Notes
 - lolalytics has no official API; endpoints are undocumented (`lolalytics.py`) and may change. Responses are cached for 24h.
 - Reading the League Client API is read-only; nothing is injected into the client or game.

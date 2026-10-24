@@ -2,7 +2,7 @@
 # Output: dist/LeaguePickHelper/LeaguePickHelper.exe (onedir: faster start, fewer AV false positives)
 a = Analysis(
     ["app.py"],
-    datas=[("panel/index.html", "panel"), ("config.toml", ".")],
+    datas=[("panel", "panel"), ("config.toml", ".")],
 )
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="LeaguePickHelper", console=False)
