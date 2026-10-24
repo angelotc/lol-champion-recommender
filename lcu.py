@@ -16,6 +16,7 @@ import websockets
 DEFAULT_LOCKFILE = r"C:\Riot Games\League of Legends\lockfile"
 POSITIONS = {"utility": "support"}  # LCU name -> lane name
 SESSION_EVENT = "OnJsonApiEvent_lol-champ-select_v1_session"
+PHASE_EVENT = "OnJsonApiEvent_lol-gameflow_v1_gameflow-phase"
 
 
 class LcuError(RuntimeError):
@@ -89,6 +90,12 @@ class LcuClient:
         r.raise_for_status()
         return {int(i) for i in r.json()}
 
+    def get_phase(self) -> str:
+        """Gameflow phase: None, Lobby, Matchmaking, ReadyCheck, ChampSelect, InProgress, ..."""
+        r = self.get("/lol-gameflow/v1/gameflow-phase")
+        r.raise_for_status()
+        return str(r.json())
+
     def get_patch(self) -> str:
         r = self.get("/lol-patch/v1/game-version")
         r.raise_for_status()
@@ -102,8 +109,10 @@ async def watch_session(
     creds: LcuCreds | Callable[[], LcuCreds],
     callback: Callable[[dict | None], Awaitable[None] | None],
     max_backoff: float = 15.0,
+    on_phase: Callable[[str], Awaitable[None] | None] | None = None,
 ) -> None:
-    """Push champ select session updates (None = no session / client gone) to callback.
+    """Push champ select session updates (None = no session / client gone) to callback,
+    and gameflow phase changes to on_phase ("None" when the client goes away).
 
     Pass a callable for `creds` to re-resolve them on reconnect (client restarts change the port).
     """
@@ -111,10 +120,14 @@ async def watch_session(
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE  # localhost self-signed cert only
 
-    async def emit(data: dict | None) -> None:
-        res = callback(data)
+    async def emit(data: dict | None, fn: Callable = callback) -> None:
+        res = fn(data)
         if asyncio.iscoroutine(res):
             await res
+
+    async def emit_phase(phase: str) -> None:
+        if on_phase:
+            await emit(phase, on_phase)
 
     delay = 1.0
     connected = False
@@ -127,9 +140,13 @@ async def watch_session(
                 additional_headers={"Authorization": f"Basic {auth}"},
             ) as ws:
                 await ws.send(json.dumps([5, SESSION_EVENT]))
+                if on_phase:
+                    await ws.send(json.dumps([5, PHASE_EVENT]))
                 connected, delay = True, 1.0
                 client = LcuClient(c)
                 try:
+                    if on_phase:
+                        await emit_phase(await asyncio.to_thread(client.get_phase))
                     await emit(await asyncio.to_thread(client.get_session))
                 except httpx.HTTPError:
                     pass
@@ -145,11 +162,15 @@ async def watch_session(
                     if not (isinstance(payload, list) and len(payload) >= 3 and payload[0] == 8):
                         continue
                     body = payload[2] or {}
+                    if payload[1] == PHASE_EVENT:
+                        await emit_phase(str(body.get("data")))
+                        continue
                     await emit(None if body.get("eventType") == "Delete" else body.get("data"))
         except (OSError, LcuError, websockets.WebSocketException):
             pass
         if connected:
             connected = False
+            await emit_phase("None")
             await emit(None)
         await asyncio.sleep(delay)
         delay = min(delay * 2, max_backoff)

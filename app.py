@@ -59,6 +59,7 @@ class App:
         self.args = args
         self.always_show = bool(args.replay or args.simulate)
         self.active = False  # in champ select
+        self.phase: str | None = None  # gameflow phase from the client; None until known
         self.user_hidden = False
         self.window: webview.Window | None = None
         self.rec: Recommender | None = None
@@ -201,8 +202,15 @@ class App:
                     pass
             self.on_session(session, pickable)
 
+        def on_phase(phase: str) -> None:
+            if phase != self.phase:
+                log.info("gameflow phase: %s", phase)
+            self.phase = phase
+            if phase != "ChampSelect":
+                handle(None)  # don't rely on the session's Delete event to end the draft
+
         self.status("Waiting for the League client...")
-        asyncio.run(watch_session(lambda: read_lockfile(lockfile), handle))
+        asyncio.run(watch_session(lambda: read_lockfile(lockfile), handle, on_phase=on_phase))
 
     def run_replay(self, path: Path) -> None:
         entries = [json.loads(l) for l in path.read_text(encoding="utf-8-sig").splitlines() if l.strip()]
@@ -235,7 +243,11 @@ class App:
                 focused = self.always_show or tracker.foreground_root() in (client, panel)
             elif self.always_show:
                 placement, focused = tracker.standalone(tracker.primary_work_area()), True
-            visible = bool(panel and placement and focused and (self.active or self.always_show) and not self.user_hidden)
+            in_draft = self.always_show or (self.active and self.phase in (None, "ChampSelect"))
+            visible = bool(
+                panel and placement and focused and in_draft and not self.user_hidden
+                and (self.always_show or not tracker.game_running())  # never over or beside the game
+            )
             if visible and (not shown or placement != last):
                 if not last or (placement.mode, placement.scale) != (last.mode, last.scale):
                     self.js(f"setScale({placement.scale:.3f});setMode({json.dumps(placement.mode)})")

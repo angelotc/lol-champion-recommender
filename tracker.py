@@ -17,6 +17,7 @@ user32.GetMonitorInfoW.argtypes = [w.HMONITOR, ctypes.c_void_p]
 
 CLIENT_CLASS = "RCLIENT"
 CLIENT_TITLE = "League of Legends"
+GAME_CLASS = "RiotWindowClass"  # the in-game window, "League of Legends (TM) Client"
 PANEL_BASE = (300, 1080)  # panel width designed for a 1080px-tall client
 MIN_WIDTH = 240
 HWND_TOPMOST = w.HWND(-1)
@@ -64,6 +65,10 @@ def make_dpi_aware() -> None:
 
 def find_client() -> int:
     return user32.FindWindowW(CLIENT_CLASS, CLIENT_TITLE) or 0  # Riot Client shares the class
+
+
+def game_running() -> bool:
+    return bool(user32.FindWindowW(GAME_CLASS, None))
 
 
 def find_window(title: str) -> int:
