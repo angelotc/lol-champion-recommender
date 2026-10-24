@@ -21,6 +21,15 @@ BASE = "https://a1.lolalytics.com/mega/"
 CACHE_DIR = paths.CACHE_DIR / "lolalytics"
 HEADERS = {"User-Agent": "Mozilla/5.0 (league-analysis pick helper)"}
 TTL = 24 * 3600
+LANE_RATE_TIER = "master_plus"  # enough games to tell which lane a champion plays
+
+
+def _games(stats: dict) -> int:
+    """Estimated games in this lane: games analysed for the tier x pick rate (inferred meaning of fields)."""
+    try:
+        return round(float(stats.get("analysed") or 0) * float(stats.get("pr") or 0) / 100)
+    except (TypeError, ValueError):
+        return 0
 
 
 class Lolalytics:
@@ -50,12 +59,21 @@ class Lolalytics:
         path.write_text(json.dumps(data), encoding="utf-8")
         return data
 
-    def counters(self, slug: str, lane: str, vslane: str) -> dict:
-        return self._get(ep="counter", c=slug, lane=lane, vslane=vslane)
+    @property
+    def tier(self) -> str:
+        return self.common["tier"]
+
+    @tier.setter
+    def tier(self, value: str) -> None:
+        self.common["tier"] = value  # part of every cache key, so tiers cache separately
+
+    def counters(self, slug: str, lane: str, vslane: str, **extra) -> dict:
+        return self._get(ep="counter", c=slug, lane=lane, vslane=vslane, **extra)
 
     def lane_rates(self, slug: str) -> dict[str, float]:
         # stats.lanes is lane-independent; reuse any cached lane query
-        return (self.counters(slug, "middle", "middle").get("stats") or {}).get("lanes") or {}
+        data = self.counters(slug, "middle", "middle", tier=LANE_RATE_TIER)
+        return (data.get("stats") or {}).get("lanes") or {}
 
     def champ_stats(self, slug: str, lane: str) -> ChampStats | None:
         matchups: dict[str, dict[int, Pair]] = {}
@@ -81,7 +99,7 @@ class Lolalytics:
             champion_id=int(stats["cid"]),
             lane=lane,
             wr=float(stats["wr"]),
-            games=sum(p.games for p in own.values()) or 1,  # lower bound; lists are truncated
+            games=_games(stats) or sum(p.games for p in own.values()) or 1,
             avg_wr=float(stats.get("avgWr") or 50),
             matchups=matchups,
             synergies=synergies,

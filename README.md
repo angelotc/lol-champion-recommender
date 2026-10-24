@@ -1,8 +1,8 @@
 # LoL Champion Recommender
 
 Live champ select pick recommender for League of Legends. Reads the draft from the local League
-Client API, detects the role you're assigned, pulls master+ / last-14-days matchup and synergy stats
-from lolalytics, and ranks picks from your champion pool for that role. Shows a panel docked beside
+Client API, detects the role you're assigned, pulls last-14-days matchup and synergy stats from
+lolalytics, and ranks picks from your champion pool for that role. Shows a panel docked beside
 the League client.
 
 <img src="docs/panel.png" alt="Panel: allies, enemies with inferred lanes, bans, and ranked support picks with the matchups behind each score" width="300">
@@ -19,7 +19,16 @@ uv run app.py --replay drafts/x.jsonl    # replay a recorded draft
 uv run app.py --simulate --role support --allies jinx,leesin --enemies nautilus,caitlyn --bans pyke
 uv run pytest
 ```
-Ctrl+Shift+L toggles the panel.
+Ctrl+Shift+L toggles the panel. Ctrl+C in the terminal quits.
+
+## Rank tier
+The pill at the top of the panel switches the stats between **Master+**, **GM+** and **Challenger**.
+The choice is remembered between runs. Each tier is cached separately for the day.
+
+Higher tiers have far fewer games. Over 14 days, lolalytics lists about 54 support matchups for Thresh
+at Master+, 14 at GM+ and none at Challenger. When few matchups are available, the panel says so and the
+scores mostly reflect each champion's overall win rate. Lane guessing for enemies always uses
+Master+ data.
 
 ## Roles
 The role always comes from your assigned position in champ select (ranked and normal draft). Queues

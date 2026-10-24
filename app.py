@@ -30,7 +30,9 @@ from paths import DATA_DIR, RESOURCES
 from scoring import LANES
 
 TITLE = "League Pick Helper"
-TIER_NAMES = {"master_plus": "Master+", "emerald_plus": "Emerald+", "platinum_plus": "Platinum+"}
+TIERS = {"master_plus": "Master+", "grandmaster_plus": "GM+", "challenger": "Challenger"}
+SETTINGS = DATA_DIR / "settings.json"
+LOW_DATA = 0.25  # below this share of possible matchups found, warn that the tier is thin
 MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT, WM_HOTKEY = 0x2, 0x4, 0x4000, 0x0312
 CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT = 0, 1, 2
 HANDLER_ROUTINE = ctypes.WINFUNCTYPE(w.BOOL, w.DWORD)
@@ -47,6 +49,9 @@ class Api:
     def hide(self) -> None:
         self._app.user_hidden = True
 
+    def set_tier(self, tier: str) -> None:
+        self._app.set_tier(tier)
+
 
 class App:
     def __init__(self, args):
@@ -56,6 +61,9 @@ class App:
         self.user_hidden = False
         self.window: webview.Window | None = None
         self.rec: Recommender | None = None
+        self.lock = threading.RLock()  # evaluation runs from the LCU thread and from pill clicks
+        self.last_draft: tuple[DraftState, set[int] | None] | None = None
+        self.last_status = ("Waiting for champ select...", "waiting")
 
     # -- page updates -----------------------------------------------------
     def js(self, code: str) -> None:
@@ -65,20 +73,59 @@ class App:
     def push(self, state: dict) -> None:
         self.js(f"window.updateState&&updateState({json.dumps(state)})")
 
-    def status(self, message: str, status: str = "waiting") -> None:
+    def status(self, message: str, status: str = "waiting", remember: bool = True) -> None:
+        if remember:
+            self.last_status = (message, status)
         self.push(self._header() | {"status": status, "message": message})
+
+    def progress(self, message: str) -> None:
+        self.status(message, remember=False)
 
     def _header(self, role: str | None = None) -> dict:
         cfg = self.rec.cfg if self.rec else load_config(self.args.config)
-        return {"role": role or "", "tier": TIER_NAMES.get(cfg.tier, cfg.tier), "days": cfg.days}
+        tier = self.rec.tier if self.rec else cfg.tier
+        return {
+            "role": role or "", "tier": TIERS.get(tier, tier), "tier_id": tier, "days": cfg.days,
+            "tiers": [{"id": k, "label": v} for k, v in TIERS.items()],
+        }
+
+    def set_tier(self, tier: str) -> None:
+        if tier not in TIERS or not self.rec:
+            return
+        with self.lock:
+            self.rec.tier = tier
+            try:
+                SETTINGS.write_text(json.dumps({"tier": tier}), encoding="utf-8")
+            except OSError:
+                log.warning("could not save settings")
+            self.render()
+
+    def render(self) -> None:
+        """Re-score the last draft (or re-show the last status) with current settings."""
+        with self.lock:
+            if not (self.active and self.last_draft):
+                self.status(*self.last_status)
+                return
+            draft, pickable = self.last_draft
+            try:
+                self.show_eval(self.rec.evaluate(draft, pickable))
+            except Exception:
+                log.exception("evaluate failed")
+                self.status("Error scoring draft (see app.log)", "error")
 
     def show_eval(self, ev: Evaluation) -> None:
         ch = self.rec.champs
         champ = lambda cid: {"name": ch.name(cid), "icon": ch.icon_url(cid)}
         d = ev.draft
+        found = sum(1 for r in ev.recs for c in r.contributions if c.label == "vs")
+        possible = len(ev.recs) * len(d.enemies)
+        note = ""
+        if possible and found / possible < LOW_DATA:
+            note = "Few matchups at this tier: scores lean on overall win rate."
         self.push(self._header(ev.role) | {
             "status": "active",
             "message": "",
+            "note": note,
             "allies": [
                 champ(s.champion_id) | {"lane": s.position or ev.lanes.get(s.champion_id, ""),
                                         "tentative": s.tentative, "is_me": s.is_me}
@@ -103,22 +150,21 @@ class App:
 
     # -- draft sources ----------------------------------------------------
     def on_session(self, session: dict | None, pickable: set[int] | None = None) -> None:
-        if not session:
-            self.active = False
-            self.status("Waiting for champ select...")
-            return
-        if not self.active:
-            self.user_hidden = False  # new draft: bring the panel back
-        self.active = True
-        draft = parse_session(session)
-        if self.rec.role_for(draft) is None:
-            self.status("No assigned role in this queue - recommendations need a position (draft or ranked).")
-            return
-        try:
-            self.show_eval(self.rec.evaluate(draft, pickable))
-        except Exception:
-            log.exception("evaluate failed")
-            self.status("Error scoring draft (see app.log)", "error")
+        with self.lock:
+            if not session:
+                self.active, self.last_draft = False, None
+                self.status("Waiting for champ select...")
+                return
+            if not self.active:
+                self.user_hidden = False  # new draft: bring the panel back
+            self.active = True
+            draft = parse_session(session)
+            if self.rec.role_for(draft) is None:
+                self.last_draft = None
+                self.status("No assigned role in this queue - recommendations need a position (draft or ranked).")
+                return
+            self.last_draft = (draft, pickable)
+            self.render()
 
     def run_live(self) -> None:
         pickable: set[int] = set()
@@ -161,7 +207,8 @@ class App:
             bans=set(ids(self.args.bans)), picked={s.champion_id for s in allies} | set(enemies),
         )
         self.active = True
-        self.show_eval(self.rec.evaluate(draft))
+        self.last_draft = (draft, None)
+        self.render()
 
     # -- window placement -------------------------------------------------
     def track(self) -> None:
@@ -206,7 +253,8 @@ class App:
         try:
             self.status("Loading champion data...")
             self.rec = Recommender(load_config(self.args.config))
-            self.rec.progress = self.status
+            self.rec.tier = self._saved_tier() or self.rec.tier
+            self.rec.progress = self.progress
             if self.args.simulate:
                 self.run_simulate()
             elif self.args.replay:
@@ -216,6 +264,14 @@ class App:
         except Exception:
             log.exception("fatal")
             self.status("Something went wrong (see app.log)", "error")
+
+    @staticmethod
+    def _saved_tier() -> str | None:
+        try:
+            tier = json.loads(SETTINGS.read_text(encoding="utf-8")).get("tier")
+        except (OSError, ValueError):
+            return None
+        return tier if tier in TIERS else None
 
     def run(self) -> None:
         tracker.make_dpi_aware()

@@ -26,7 +26,7 @@ class Recommender:
         self.cfg = cfg
         self.champs = Champions.load()
         self.lola = Lolalytics(cfg.tier, cfg.days)
-        self.pools: dict[str, dict[int, ChampStats]] = {}
+        self.pools: dict[tuple[str, str], dict[int, ChampStats]] = {}  # (tier, role) -> pool
         self.progress: Callable[[str], None] = lambda _: None
 
     @staticmethod
@@ -34,20 +34,29 @@ class Recommender:
         """Assigned position, or None when the queue doesn't assign one (blind pick, ARAM)."""
         return draft.my_position if draft.my_position in LANES else None
 
+    @property
+    def tier(self) -> str:
+        return self.lola.tier
+
+    @tier.setter
+    def tier(self, value: str) -> None:
+        self.lola.tier = value
+
     def pool(self, role: str) -> dict[int, ChampStats]:
-        """Stats for the role's champion pool, loaded on first use (then served from cache)."""
-        if role not in self.pools:
+        """Stats for the role's champion pool at the current tier, loaded on first use."""
+        key = (self.tier, role)
+        if key not in self.pools:
             pool = {}
             for slug in self.cfg.pools.get(role, []):
-                self.progress(f"Loading {role} stats: {slug} ({self.cfg.tier}, {self.cfg.days} days)...")
+                self.progress(f"Loading {role} stats: {slug} ({self.tier}, {self.cfg.days} days)...")
                 cid = self.champs.id_from_slug(slug)  # accepts names like "Lee Sin"
                 s = self.lola.champ_stats(self.champs.slug(cid) if cid else slug, role)
                 if s is None:
-                    log.warning("no lolalytics data for %s in %s", slug, role)
+                    log.warning("no lolalytics data for %s in %s at %s", slug, role, self.tier)
                     continue
                 pool[s.champion_id] = s
-            self.pools[role] = pool
-        return self.pools[role]
+            self.pools[key] = pool
+        return self.pools[key]
 
     def _lane_rates(self, ids: list[int]) -> dict[int, dict[str, float]]:
         return {c: self.lola.lane_rates(self.champs.slug(c)) for c in ids}

@@ -94,10 +94,20 @@ body.overlay .name{font-size:.8125rem}
 body.overlay .score{font-size:1.0625rem}
 body.overlay .foot{padding:.1875rem}
 body.overlay .recs{gap:.1875rem;padding:.25rem .375rem}
+.tiers{display:flex;justify-content:center;padding:.375rem .625rem;border-bottom:1px solid var(--line);flex:none}
+.pill{display:inline-flex;border:1px solid var(--line2);border-radius:999px;padding:2px;background:rgba(0,0,0,.25)}
+.pill button{background:none;border:0;border-radius:999px;color:var(--muted);font:inherit;font-size:.6875rem;font-weight:600;
+  letter-spacing:.04em;padding:.1875rem .625rem;cursor:pointer;transition:background .15s,color .15s}
+.pill button:hover{color:var(--gold2)}
+.pill button.on{background:var(--gold);color:#010a13}
+.pill button:disabled{cursor:wait}
+.note{font-size:.625rem;color:var(--muted);text-align:center;padding:.25rem .625rem 0}
+body.overlay .tiers{padding:.1875rem .5rem}
 </style>
 </head>
 <body>
 <div class="hdr"><div class="t" id="title">Pick Recommender</div><button class="x" id="hide" title="Hide">&times;</button></div>
+<div class="tiers hidden" id="tiersBox"><div><div class="pill" id="tiers"></div><div class="note hidden" id="note"></div></div></div>
 <div class="team" id="team">
   <div><div class="rlabel">Allies</div><div class="row" id="allies"></div></div>
   <div><div class="rlabel">Enemies</div><div class="row" id="enemies"></div></div>
@@ -190,13 +200,33 @@ body.overlay .recs{gap:.1875rem;padding:.25rem .375rem}
     });
   }
   function pad(n){return(n<10?"0":"")+n}
+  var pending=null;
+  function renderTiers(s){
+    var box=$("tiers");
+    $("tiersBox").classList.toggle("hidden",!(s.tiers&&s.tiers.length));
+    if(pending&&pending===s.tier_id)pending=null;
+    clear(box);
+    (s.tiers||[]).forEach(function(t){
+      var b=el("button",(pending||s.tier_id)===t.id?"on":null,t.label);
+      b.disabled=!!pending;
+      b.addEventListener("click",function(){
+        if(pending||t.id===s.tier_id)return;
+        pending=t.id;renderTiers(s);
+        try{window.pywebview.api.set_tier(t.id)}catch(e){pending=null;renderTiers(s)}
+      });
+      box.appendChild(b);
+    });
+    $("note").textContent=s.note||"";
+    $("note").classList.toggle("hidden",!s.note);
+  }
 
   window.updateState=function(s){
     s=s||{};
     var active=s.status==="active";
     var parts=[];
-    if(s.role)parts.push(cap(s.role));if(s.tier)parts.push(s.tier);if(s.days!=null&&s.days!=="")parts.push(s.days+"d");
+    if(s.role)parts.push(cap(s.role));if(s.days!=null&&s.days!=="")parts.push(s.days+"d");
     $("title").textContent=parts.length?parts.join(" · "):"Pick Recommender";
+    renderTiers(s);
     $("team").classList.toggle("hidden",!active);
     $("recs").classList.toggle("hidden",!active);
     var em=$("empty");em.classList.toggle("hidden",active);
@@ -205,7 +235,7 @@ body.overlay .recs{gap:.1875rem;padding:.25rem .375rem}
     if(active){
       chipRow($("allies"),s.allies,"ally");
       chipRow($("enemies"),s.enemies,"enemy");
-      clear($("bans"));
+      clear($("bans"));$("bansBox").classList.toggle("hidden",!(s.bans&&s.bans.length));
       (s.bans||[]).forEach(function(b){var i=icon(b.name,b.icon);i.title=b.name;$("bans").appendChild(i)});
       var keep=$("recs").scrollTop;renderRecs(s.recs);$("recs").scrollTop=keep;
     }
@@ -231,7 +261,7 @@ body.overlay .recs{gap:.1875rem;padding:.25rem .375rem}
     var C=function(n,id,k,l,d,g,w,t){return{kind:k,name:n,icon:I(id),lane:l,delta:d,games:g,weighted:w,tentative:!!t}};
     var rec=function(n,id,sc,base,cs){return{name:n,icon:I(id),score:sc,base:base,contributions:cs}};
     window.updateState({
-      status:"active",role:"support",tier:"Master+",days:14,
+      status:"active",role:"support",tier:"Master+",days:14,tier_id:q.get("tier")||"master_plus",note:q.get("tier")==="challenger"?"Few matchups at this tier: scores lean on overall win rate.":"",tiers:[{id:"master_plus",label:"Master+"},{id:"grandmaster_plus",label:"GM+"},{id:"challenger",label:"Challenger"}],
       allies:[{name:"Jinx",icon:I("Jinx"),lane:"bottom",tentative:false,is_me:false},
               {name:"Lee Sin",icon:I("LeeSin"),lane:"jungle",tentative:true,is_me:false},
               {name:"Me",icon:"",lane:"support",tentative:false,is_me:true}],
