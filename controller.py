@@ -15,7 +15,7 @@ import views
 from config import Config
 from data import lcu_data
 from data.store import Store
-from engine import Evaluation, Recommender
+from engine import BuildEvaluation, Evaluation, Recommender
 from paths import DATA_DIR
 from lcu import LcuClient
 from scoring import LANES, Comfort
@@ -23,6 +23,7 @@ from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Event, Session, Stage
 
 SETTINGS = DATA_DIR / "settings.json"
 SYNC_EVERY = 20.0  # seconds; history/mastery sync is cheap but not free
+STAGE_TABS = {Stage.BAN: ["bans", "picks"], Stage.LOCKED: ["build", "picks"]}  # first is the default
 log = logging.getLogger("controller")
 
 
@@ -54,6 +55,7 @@ class Controller:
         self.notice: tuple[str, str] | None = None  # (message, kind) shown instead of the stage view
         self.draft_id: int | None = None
         self.last_eval: Evaluation | None = None
+        self._build_cache: tuple[tuple, BuildEvaluation] | None = None
         self.tab: str | None = None        # "bans" | "picks" chosen by you during the ban phase
         self.lcu: Callable[[], LcuClient] | None = None  # client factory, set by the live source
         self.mastery: dict[int, lcu_data.Mastery] = {}
@@ -122,9 +124,11 @@ class Controller:
             if not self.rec or self.rec.role_for(s.draft) is None:
                 self.show_status("No assigned role in this queue - recommendations need a position (draft or ranked).")
                 return
-            tabs = {"tabs": ["bans", "picks"], "tab": self.tab or "bans"} if stage == Stage.BAN else {}
+            tabs = {}
+            if stage in STAGE_TABS:
+                tabs = {"tabs": STAGE_TABS[stage], "tab": self.tab if self.tab in STAGE_TABS[stage] else STAGE_TABS[stage][0]}
             try:
-                if tabs and tabs["tab"] == "bans":
+                if tabs.get("tab") == "bans":
                     bev = self.rec.bans(s.draft, s.pickable)
                     self.push(views.bans(self.header(bev.role), bev, self.rec.champs) | tabs)
                     return
@@ -132,10 +136,23 @@ class Controller:
                 if s.frozen:  # teams stay live, recommendations stay as they were at lock-in
                     ev.recs = self.rec.evaluate(s.frozen, s.pickable, s.enemy_lanes).recs
                 self.last_eval = ev
+                if tabs.get("tab") == "build":
+                    self.push(views.build(self.header(ev.role), self._build(ev), self.rec.champs, self.rec.assets) | tabs)
+                    return
                 self.push(views.picks(self.header(ev.role), ev, self.rec.champs, s.enemy_lanes) | tabs)
             except Exception:
                 log.exception("evaluate failed")
                 self.show_status("Error scoring draft (see app.log)", "error")
+
+    def _build(self, ev: Evaluation) -> BuildEvaluation:
+        """Build for your locked champion vs the enemies' lanes, memoized per draft state."""
+        enemies = {lane: cid for cid, lane in ev.lanes.items() if cid in ev.draft.enemies}
+        key = (ev.draft.my_locked, ev.role, self.tier, tuple(sorted(enemies.items())))
+        if self._build_cache and self._build_cache[0] == key:
+            return self._build_cache[1]
+        bev = self.rec.build(ev.draft.my_locked, ev.role, enemies)
+        self._build_cache = (key, bev)
+        return bev
 
     # -- inputs -----------------------------------------------------------
     def on_phase(self, phase: str) -> None:
@@ -167,6 +184,8 @@ class Controller:
                 self.draft_id = self._record(lambda: self.store.start_draft(role, self.tier))
                 if session and self.draft_id is not None:
                     self._record(lambda: self.store.snapshot(self.draft_id, session))
+        if Event.LOCKED_IN in events:
+            self.tab = None  # show the build first, whatever tab you had in the ban phase
         self.render()
         if Event.LOCKED_IN in events and self.draft_id is not None and self.last_eval:
             ev = self.last_eval
@@ -253,7 +272,7 @@ class Controller:
 
     # -- panel actions ----------------------------------------------------
     def set_tab(self, tab: str) -> None:
-        if tab in ("bans", "picks"):
+        if any(tab in t for t in STAGE_TABS.values()):
             with self.lock:
                 self.tab = tab
                 self.render()

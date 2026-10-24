@@ -59,6 +59,19 @@ your likely picks do against them, shrunk by games, plus their own strength), we
 Hover a suggestion to see the matchup against each of your picks. Your team's picks and hovers
 and your own top picks are never suggested. Switch to **Picks** with the tab at the top.
 
+## After you lock in: runes and build
+The panel switches to **Build** for your champion in your role (the **Picks** tab still shows the
+frozen recommendations): rune pages (most picked and highest win rate), keystones, summoner
+spells, skill order, start items, core paths, boots and each item slot, with win rate, pick rate
+and games.
+
+Every option also gets a **Δ vs your lane opponents** (your lane, plus the enemy duo for bot and
+support), read from lolalytics' matchup build pages: `(option win rate vs them - your win rate vs
+them) - (option win rate overall - your win rate overall)`, shrunk by games (k = 300, under 100
+games hidden). Positive means it does better than usual in this matchup. The strongest is tagged
+**BEST VS LANE**; hover any option for each opponent. Nothing is imported into the client: you
+set your runes and items yourself.
+
 ## Your champions (comfort)
 Scores include what you're good at:
 - **you:** your win rate on the champion in that role minus everyone's, shrunk hard (k = 20)

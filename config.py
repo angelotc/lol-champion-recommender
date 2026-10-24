@@ -41,6 +41,8 @@ class Config:
     top_n: int = 8
     ban_count: int = 5       # ban suggestions shown
     ban_vs_top: int = 5      # measure bans against this many of your top picks
+    build_k: float = 300      # shrink for matchup rune/item deltas
+    build_min_games: int = 100  # hide matchup deltas with fewer games
     lockfile: str = DEFAULT_LOCKFILE
     weights: dict[str, dict] = field(default_factory=dict)  # per-role overrides
     comfort: dict = field(default_factory=dict)  # overrides for DEFAULT_COMFORT, all roles

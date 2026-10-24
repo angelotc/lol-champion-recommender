@@ -5,7 +5,9 @@ import threading
 from dataclasses import dataclass, field
 from typing import Callable
 
+from data import builds
 from data.champions import Champions
+from data.ddragon import Assets
 from config import Config
 from lcu import DraftState
 from data.fetch import Fetcher
@@ -27,6 +29,14 @@ class Evaluation:
 
 
 @dataclass
+class BuildEvaluation:
+    champion_id: int
+    role: str
+    build: builds.Build | None
+    opponents: dict[str, int]  # lane -> enemy champion the matchup deltas are measured against
+
+
+@dataclass
 class BanEvaluation:
     draft: DraftState
     role: str
@@ -43,6 +53,7 @@ class Recommender:
         self.progress: Callable[[str], None] = lambda _: None
         # your record and mastery per champion for a role; set by the controller (live only)
         self.comfort: Callable[[str], dict[int, Comfort]] = lambda role: {}
+        self._assets: Assets | None = None
         self._pool_locks: dict[tuple[str, str], threading.Lock] = {}
         self._locks_lock = threading.Lock()
 
@@ -50,6 +61,13 @@ class Recommender:
     def role_for(draft: DraftState) -> str | None:
         """Assigned position, or None when the queue doesn't assign one (blind pick, ARAM)."""
         return draft.my_position if draft.my_position in LANES else None
+
+    @property
+    def assets(self) -> Assets:
+        """Item, rune and summoner spell names/icons (loaded on first use)."""
+        if self._assets is None:
+            self._assets = Assets.load(self.champs.version)
+        return self._assets
 
     @property
     def tier(self) -> str:
@@ -149,3 +167,26 @@ class Recommender:
             if t.champion_id in known
         ]
         return BanEvaluation(draft, role, [p.champion_id for p in picks], threats[: self.cfg.ban_count])
+
+    def build(self, champion_id: int, role: str, enemies: dict[str, int]) -> BuildEvaluation:
+        """Runes, spells, skills and items for your champion in the role, with matchup deltas vs
+        your lane opponents (your lane, plus the enemy duo for bot and support)."""
+        slug = self.champs.slug(champion_id)
+        base = builds.parse(self.lola.build_full(slug, role))
+        weights = self.cfg.weights_for(role)["enemy"]
+        opponents = {lane: cid for lane, cid in enemies.items() if weights.get(lane, 0) >= 1.0}
+        if base:
+            jobs = {
+                lane: self.lola.fetch.submit(self.lola.matchup_build, slug, role, self.champs.slug(cid), lane)
+                for lane, cid in opponents.items()
+            }
+            for lane, job in jobs.items():
+                try:
+                    vs = builds.parse(job.result())
+                except Exception:
+                    log.exception("matchup build %s vs %s", slug, opponents[lane])
+                    continue
+                if vs:
+                    builds.add_matchup(base, vs, opponents[lane], lane, weights[lane], self.cfg.build_k,
+                                       self.cfg.build_min_games)
+        return BuildEvaluation(champion_id, role, base, opponents)
