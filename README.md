@@ -5,6 +5,8 @@ Client API, detects the role you're assigned, pulls last-14-days matchup and syn
 lolalytics, and ranks every viable champion you own for that role. Shows a panel docked beside
 the League client.
 
+![Live ranked champ select with the panel docked to the right of the League client: Nautilus locked in, picks frozen, top pick Maokai expanded to show its matchup and synergy deltas](docs/client.png)
+
 <img src="docs/panel.png" alt="Panel: tier pill, allies, enemies with inferred lanes, bans, and ranked support picks; the top pick is expanded to show each matchup delta, games, weighted value and base" width="300">
 
 Each score is the pick's baseline win rate plus weighted matchup deltas vs enemies and synergy deltas with allies;
