@@ -13,13 +13,16 @@ from typing import Callable
 
 import views
 from config import Config
+from data import lcu_data
 from data.store import Store
 from engine import Evaluation, Recommender
 from paths import DATA_DIR
-from scoring import LANES
+from lcu import LcuClient
+from scoring import LANES, Comfort
 from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Event, Session, Stage
 
 SETTINGS = DATA_DIR / "settings.json"
+SYNC_EVERY = 20.0  # seconds; history/mastery sync is cheap but not free
 log = logging.getLogger("controller")
 
 
@@ -52,7 +55,9 @@ class Controller:
         self.draft_id: int | None = None
         self.last_eval: Evaluation | None = None
         self.tab: str | None = None        # "bans" | "picks" chosen by you during the ban phase
-        self.lobby_roles: Callable[[], list[str]] = lambda: []  # set by the live source
+        self.lcu: Callable[[], LcuClient] | None = None  # client factory, set by the live source
+        self.mastery: dict[int, lcu_data.Mastery] = {}
+        self._synced_at = 0.0
         self.preload: str = ""             # progress line while preloading in lobby/queue
         self._preloaded: set[tuple[str, str]] = set()
 
@@ -64,6 +69,29 @@ class Controller:
         if tier in views.TIERS:
             self.rec.tier = tier
         self.rec.progress = self.progress
+        self.rec.comfort = self.comfort
+
+    def comfort(self, role: str) -> dict[int, Comfort]:
+        """Your record (from stored games) and mastery per champion, for scoring."""
+        record = {}
+        if self.store:
+            try:
+                record = self.store.champ_record(role=role)
+            except Exception:
+                log.exception("champ record")
+        out = {cid: Comfort(mastery=m.points) for cid, m in self.mastery.items()}
+        for cid, (games, wins) in record.items():
+            out[cid] = Comfort(games, wins, out[cid].mastery if cid in out else 0)
+        return out
+
+    def lobby_roles(self) -> list[str]:
+        if not self.lcu:
+            return []
+        client = self.lcu()
+        try:
+            return client.get_lobby_positions()
+        finally:
+            client.close()
 
     @property
     def tier(self) -> str:
@@ -129,6 +157,8 @@ class Controller:
         s = self.session
         if Event.PHASE in events and s.stage in PRE_DRAFT_STAGES:
             self.start_preload()
+        if Event.PHASE in events and s.stage in (Stage.IDLE, Stage.LOBBY, Stage.POSTGAME):
+            self.start_sync(delay=5.0 if s.stage == Stage.POSTGAME else 0.0)
         if Event.DRAFT_STARTED in events:
             self.user_hidden = False  # new draft: bring the panel back
             self.tab, self.preload = None, ""
@@ -158,6 +188,26 @@ class Controller:
         except Exception:
             log.exception("store write failed")
             return None
+
+    # -- your games and mastery --------------------------------------------
+    def start_sync(self, delay: float = 0.0) -> None:
+        """Copy finished games into the store and refresh mastery, in the background."""
+        if not (self.lcu and self.store) or time.time() - self._synced_at < SYNC_EVERY:
+            return
+        self._synced_at = time.time()
+        threading.Thread(target=self._sync, args=(delay,), daemon=True, name="sync").start()
+
+    def _sync(self, delay: float) -> None:
+        time.sleep(delay)  # the client publishes a finished game a few seconds after it ends
+        try:
+            client = self.lcu()
+            try:
+                self.mastery = lcu_data.mastery(client) or self.mastery
+                lcu_data.sync_history(client, self.store)
+            finally:
+                client.close()
+        except Exception:
+            log.exception("history sync")
 
     # -- preloading ------------------------------------------------------
     def start_preload(self) -> None:

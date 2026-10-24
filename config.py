@@ -9,6 +9,9 @@ from scoring import LANES
 
 DEFAULT_LOCKFILE = r"C:\Riot Games\League of Legends\lockfile"
 DUO = {"bottom": "support", "support": "bottom"}
+# your own record and mastery: weight (0 = ignore), k (shrink: personal samples are small),
+# history (how much your win rate counts), mastery (bonus per log-1000-points), mastery_cap
+DEFAULT_COMFORT = {"weight": 1.0, "k": 20, "history": 0.5, "mastery": 0.15, "mastery_cap": 1.0}
 
 
 def default_weights(role: str) -> dict:
@@ -23,7 +26,7 @@ def default_weights(role: str) -> dict:
             enemy[lane] = 0.3
         if lane != role:
             ally[lane] = 1.0 if lane == DUO.get(role) else 0.5 if "jungle" in (lane, role) else 0.3
-    return {"base": 1.0, "enemy": enemy, "ally": ally}
+    return {"base": 1.0, "enemy": enemy, "ally": ally, "comfort": dict(DEFAULT_COMFORT)}
 
 
 @dataclass
@@ -40,6 +43,8 @@ class Config:
     ban_vs_top: int = 5      # measure bans against this many of your top picks
     lockfile: str = DEFAULT_LOCKFILE
     weights: dict[str, dict] = field(default_factory=dict)  # per-role overrides
+    comfort: dict = field(default_factory=dict)  # overrides for DEFAULT_COMFORT, all roles
+    comfort_only: bool = False  # only recommend champions you've played or have mastery on
 
     def weights_for(self, role: str) -> dict:
         w = default_weights(role)
@@ -48,6 +53,7 @@ class Config:
             "base": override.get("base", w["base"]),
             "enemy": w["enemy"] | override.get("enemy", {}),
             "ally": w["ally"] | override.get("ally", {}),
+            "comfort": w["comfort"] | self.comfort | override.get("comfort", {}),
         }
 
 

@@ -59,6 +59,16 @@ your likely picks do against them, shrunk by games, plus their own strength), we
 Hover a suggestion to see the matchup against each of your picks. Your team's picks and hovers
 and your own top picks are never suggested. Switch to **Picks** with the tab at the top.
 
+## Your champions (comfort)
+Scores include what you're good at:
+- **you:** your win rate on the champion in that role minus everyone's, shrunk hard (k = 20)
+  because personal samples are small. Comes from your ranked games, which the app copies from the
+  client's match history after every game (the client itself only shows ~20).
+- **mastery:** a small bonus for mastery points, capped at +1.0.
+
+Tune or turn it off in `config.toml` with `[comfort]` (`weight = 0` disables it), or set
+`comfort_only = true` to only see champions you've played.
+
 ## Enemy lanes and flex picks
 The client doesn't say which lane each enemy plays, so lanes are guessed from each champion's play rates.
 Champions with a real second lane (10% or more of their games, e.g. Hwei mid/bot) get a gold dot. Click

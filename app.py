@@ -100,14 +100,7 @@ class App:
                     pass
             ctl.on_session(session, pickable)
 
-        def lobby_roles() -> list[str]:
-            client = LcuClient(read_lockfile(lockfile))
-            try:
-                return client.get_lobby_positions()
-            finally:
-                client.close()
-
-        ctl.lobby_roles = lobby_roles
+        ctl.lcu = lambda: LcuClient(read_lockfile(lockfile))
 
         def on_phase(phase: str) -> None:
             ctl.idle_message = "Waiting for champ select..."  # connected (the panel is hidden when idle)

@@ -23,3 +23,12 @@ lockfile = 'C:\Riot Games\League of Legends\lockfile'
 # base = 1.0
 # enemy = { support = 1.0, bottom = 1.0, jungle = 0.5, middle = 0.4, top = 0.3 }
 # ally = { bottom = 1.0, jungle = 0.5, middle = 0.4, top = 0.3 }
+
+# Your own record and mastery (see README). weight = 0 turns it off.
+# [comfort]
+# weight = 1.0
+# k = 20            # shrinkage for your own games
+# history = 0.5     # how much your win rate counts
+# mastery = 0.15    # bonus per log(1 + points / 1000), capped at mastery_cap
+# mastery_cap = 1.0
+# comfort_only = false   (top-level key: only recommend champions you've played or have mastery on)

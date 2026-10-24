@@ -2,6 +2,9 @@
 (function(L){
   var $=L.$,el=L.el,lane=L.lane,icon=L.icon,fmt=L.fmt,cls=L.cls,clear=L.clear,short=L.short;
   var openSet={},pickId=null,lastEnemies=[];
+  var KIND={vs:"vs",with:"w/",you:"you",mastery:"mastery"};
+  function pts(n){n=Number(n)||0;return n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?Math.round(n/1e3)+"k":String(n)}
+  function personal(c){return c.kind==="you"||c.kind==="mastery"}
 
   function chipRow(box,list,kind){
     clear(box);
@@ -51,7 +54,9 @@
   function contrib(c){
     var d=el("div","c");
     d.appendChild(el("span","d "+cls(c.weighted),fmt(c.weighted)));
-    d.appendChild(el("span",null,c.kind==="vs"?"vs":"w/"));
+    if(c.kind==="you"){d.appendChild(el("span",null,"you · "+c.games+" games"));return d}
+    if(c.kind==="mastery"){d.appendChild(el("span",null,"mastery · "+pts(c.delta)));return d}
+    d.appendChild(el("span",null,KIND[c.kind]||c.kind));
     d.appendChild(icon(c.name,c.icon));
     d.appendChild(el("span","n",short(c.name)));
     return d;
@@ -63,11 +68,15 @@
     t.appendChild(h);
     (r.contributions||[]).forEach(function(c){
       var tr=document.createElement("tr");if(c.tentative)tr.className="tent";
-      tr.appendChild(el("td",null,c.kind==="vs"?"vs":"w/"));
-      var td=el("td","ch");td.appendChild(icon(c.name,c.icon));td.appendChild(el("span","n",c.name));tr.appendChild(td);
+      tr.appendChild(el("td",null,KIND[c.kind]||c.kind));
+      var td=el("td","ch");
+      if(personal(c))td.appendChild(el("span","n",c.kind==="you"?"your games":"points"));
+      else{td.appendChild(icon(c.name,c.icon));td.appendChild(el("span","n",c.name))}
+      tr.appendChild(td);
       tr.appendChild(el("td",null,lane(c.lane)));
-      tr.appendChild(el("td",cls(c.delta),fmt(c.delta)));
-      tr.appendChild(el("td",null,c.games!=null?String(c.games):"-"));
+      if(c.kind==="mastery")tr.appendChild(el("td",null,pts(c.delta)));
+      else tr.appendChild(el("td",cls(c.delta),fmt(c.delta)));
+      tr.appendChild(el("td",null,c.kind==="mastery"?"-":c.games!=null?String(c.games):"-"));
       tr.appendChild(el("td",null,fmt(c.weighted)));
       t.appendChild(tr);
     });

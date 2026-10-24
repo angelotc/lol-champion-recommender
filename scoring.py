@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from itertools import permutations
+from math import log1p
 
 LANES = ("top", "jungle", "middle", "bottom", "support")
 
@@ -25,8 +26,16 @@ class ChampStats:
 
 
 @dataclass
+class Comfort:
+    """Your own record on a champion in the role, and your mastery points on it."""
+    games: int = 0
+    wins: int = 0
+    mastery: int = 0
+
+
+@dataclass
 class Contribution:
-    label: str  # "vs" or "with"
+    label: str  # "vs", "with", "you" (your record) or "mastery"
     champion_id: int
     lane: str
     delta: float
@@ -47,6 +56,22 @@ def shrink(delta: float, games: int, k: float) -> float:
     return delta * games / (games + k) if games + k > 0 else 0.0
 
 
+def comfort_terms(s: ChampStats, c: Comfort | None, w: dict) -> list[Contribution]:
+    """Your record vs everyone's on the champion (shrunk hard: personal samples are small), and a
+    capped bonus for mastery points (familiarity), both weighted by w["weight"]."""
+    if c is None or not w or not w.get("weight"):
+        return []
+    out = []
+    if c.games:
+        delta = 100 * c.wins / c.games - s.wr
+        out.append(Contribution("you", s.champion_id, s.lane, delta, c.games,
+                                shrink(delta, c.games, w.get("k", 20)) * w.get("history", 0.5) * w["weight"]))
+    if c.mastery > 0 and w.get("mastery"):
+        bonus = min(log1p(c.mastery / 1000) * w["mastery"], w.get("mastery_cap", 1.0))
+        out.append(Contribution("mastery", s.champion_id, s.lane, float(c.mastery), 0, bonus * w["weight"]))
+    return out
+
+
 def recommend(
     candidates: list[ChampStats],
     allies: dict[str, tuple[int, bool]],
@@ -55,6 +80,7 @@ def recommend(
     k: float,
     avg_wr: float = 50.0,
     tentative_factor: float = 0.5,
+    comfort: dict[int, Comfort] | None = None,
 ) -> list[Recommendation]:
     recs = []
     for s in candidates:
@@ -76,6 +102,8 @@ def recommend(
             if tent:
                 w *= tentative_factor
             contribs.append(Contribution("with", cid, lane, delta, pair.games, w, tent))
+        if comfort is not None:
+            contribs += comfort_terms(s, comfort.get(s.champion_id), weights.get("comfort", {}))
         score = base + sum(c.weighted for c in contribs)
         recs.append(Recommendation(s.champion_id, score, base, contribs))
     return sorted(recs, key=lambda r: r.score, reverse=True)

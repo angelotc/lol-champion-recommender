@@ -13,6 +13,7 @@ from pathlib import Path
 import paths
 
 DB_PATH = paths.DATA_DIR / "store.sqlite"
+DRAFT_GAME_WINDOW = 15 * 60  # seconds between a draft ending and its game's creation time
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS drafts (
     id INTEGER PRIMARY KEY,
@@ -123,7 +124,30 @@ class Store:
             (game_id, created, queue, champ, role, int(win), duration, json.dumps(detail)),
         )
 
-    def champ_record(self, role: str | None = None, queue: int | None = 420) -> dict[int, tuple[int, int]]:
+    def _draft_for(self, champ: int, created: float) -> sqlite3.Row | None:
+        """The draft you played this game from: same champion, draft ended around game creation."""
+        with self.lock:
+            self.db.row_factory = sqlite3.Row
+            try:
+                return self.db.execute(
+                    "SELECT * FROM drafts WHERE my_champ=? AND ended BETWEEN ? AND ? ORDER BY ABS(ended - ?) LIMIT 1",
+                    (champ, created - DRAFT_GAME_WINDOW, created + DRAFT_GAME_WINDOW, created),
+                ).fetchone()
+            finally:
+                self.db.row_factory = None
+
+    def draft_role_for(self, champ: int, created: float) -> str | None:
+        row = self._draft_for(champ, created)
+        return row["role"] if row else None
+
+    def link_draft(self, game_id: int, champ: int, created: float, win: bool) -> bool:
+        row = self._draft_for(champ, created)
+        if not row:
+            return False
+        self.update_draft(row["id"], game_id=game_id, result="win" if win else "loss")
+        return True
+
+    def champ_record(self, role: str | None = None, queue: int | None = None) -> dict[int, tuple[int, int]]:
         """Champion id -> (games, wins) from your stored games, optionally for one role/queue."""
         sql, args = "SELECT champ, COUNT(*), SUM(win) FROM games WHERE 1=1", []
         if role:

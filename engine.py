@@ -11,7 +11,7 @@ from lcu import DraftState
 from data.fetch import Fetcher
 from data.lolalytics import Lolalytics
 from scoring import (
-    LANES, ChampStats, Recommendation, Threat, assign_enemy_lanes, ban_threats, infer_enemy_lanes, recommend,
+    LANES, ChampStats, Comfort, Recommendation, Threat, assign_enemy_lanes, ban_threats, infer_enemy_lanes, recommend,
 )
 
 log = logging.getLogger(__name__)
@@ -41,6 +41,8 @@ class Recommender:
         self.lola = Lolalytics(cfg.tier, cfg.days, fetcher)
         self.pools: dict[tuple[str, str], dict[int, ChampStats]] = {}  # (tier, role) -> pool
         self.progress: Callable[[str], None] = lambda _: None
+        # your record and mastery per champion for a role; set by the controller (live only)
+        self.comfort: Callable[[str], dict[int, Comfort]] = lambda role: {}
         self._pool_locks: dict[tuple[str, str], threading.Lock] = {}
         self._locks_lock = threading.Lock()
 
@@ -106,9 +108,11 @@ class Recommender:
         if role is None:
             raise ValueError("no assigned role")
         taken = draft.bans | draft.picked
+        comfort = self.comfort(role)
         candidates = [
             s for cid, s in self.pool(role).items()
             if cid not in taken and (not pickable or cid in pickable)
+            and (not self.cfg.comfort_only or cid in comfort)
         ]
         open_lanes = tuple(l for l in LANES if l != role)
         others = [s for s in draft.allies if s.champion_id and not s.is_me]
@@ -123,7 +127,7 @@ class Recommender:
         enemies = assign_enemy_lanes(draft.enemies, rates, enemy_lanes)
         recs = recommend(
             candidates, allies, enemies, self.cfg.weights_for(role), self.cfg.k,
-            tentative_factor=self.cfg.tentative_factor,
+            tentative_factor=self.cfg.tentative_factor, comfort=comfort,
         )
         lanes = {cid: lane for lane, (cid, _) in allies.items()} | {cid: lane for lane, cid in enemies.items()}
         return Evaluation(draft, role, recs[: self.cfg.top_n], lanes, rates)
