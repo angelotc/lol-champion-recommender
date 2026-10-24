@@ -103,6 +103,11 @@ body.overlay .recs{gap:.1875rem;padding:.25rem .375rem}
 .pill button:disabled{cursor:wait}
 .note{font-size:.625rem;color:var(--muted);text-align:center;padding:.25rem .625rem 0}
 body.overlay .tiers{padding:.1875rem .5rem}
+.locked{display:flex;align-items:center;gap:.375rem;margin:.375rem .5rem 0;padding:.3125rem .5rem;border:1px solid var(--gold);
+  border-radius:4px;background:rgba(200,170,110,.08);font-size:.6875rem;color:var(--gold2);flex:none}
+.locked .ico{width:1.25rem;height:1.25rem}
+.locked .sub2{color:var(--muted);margin-left:auto;font-size:.625rem}
+.rec.mine{box-shadow:inset 3px 0 0 var(--gold)}
 </style>
 </head>
 <body>
@@ -113,6 +118,7 @@ body.overlay .tiers{padding:.1875rem .5rem}
   <div><div class="rlabel">Enemies</div><div class="row" id="enemies"></div></div>
   <div class="bans" id="bansBox"><div class="rlabel">Bans</div><div class="row" id="bans"></div></div>
 </div>
+<div class="locked hidden" id="locked"></div>
 <div class="recs" id="recs"></div>
 <div class="empty hidden" id="empty"><div class="dot"></div><div id="msg"></div></div>
 <div class="foot" id="foot">Data: lolalytics &middot; last update --:--:--</div>
@@ -179,10 +185,17 @@ body.overlay .tiers{padding:.1875rem .5rem}
     box.appendChild(b);
     return box;
   }
-  function renderRecs(recs){
+  function renderLocked(l){
+    var b=$("locked");clear(b);b.classList.toggle("hidden",!l);
+    if(!l)return;
+    b.appendChild(icon(l.name,l.icon));
+    b.appendChild(el("span",null,"Locked in: "+l.name));
+    b.appendChild(el("span","sub2","picks frozen"));
+  }
+  function renderRecs(recs,locked){
     var box=$("recs");clear(box);
     (recs||[]).forEach(function(r,i){
-      var d=el("div","rec"+(i===0?" top":"")+(openSet[r.name]?" open":""));
+      var d=el("div","rec"+(i===0?" top":"")+(openSet[r.name]?" open":"")+(locked&&locked.name===r.name?" mine":""));
       var m=el("div","main");
       m.appendChild(el("div","rank",String(i+1)));
       m.appendChild(icon(r.name,r.icon,"big"));
@@ -228,6 +241,7 @@ body.overlay .tiers{padding:.1875rem .5rem}
     $("title").textContent=parts.length?parts.join(" · "):"Pick Recommender";
     renderTiers(s);
     $("team").classList.toggle("hidden",!active);
+    renderLocked(active?s.locked:null);
     $("recs").classList.toggle("hidden",!active);
     var em=$("empty");em.classList.toggle("hidden",active);
     em.classList.toggle("err",s.status==="error");
@@ -237,7 +251,7 @@ body.overlay .tiers{padding:.1875rem .5rem}
       chipRow($("enemies"),s.enemies,"enemy");
       clear($("bans"));$("bansBox").classList.toggle("hidden",!(s.bans&&s.bans.length));
       (s.bans||[]).forEach(function(b){var i=icon(b.name,b.icon);i.title=b.name;$("bans").appendChild(i)});
-      var keep=$("recs").scrollTop;renderRecs(s.recs);$("recs").scrollTop=keep;
+      var keep=$("recs").scrollTop;renderRecs(s.recs,s.locked);$("recs").scrollTop=keep;
     }
     var n=new Date();
     $("foot").textContent="Data: lolalytics · last update "+pad(n.getHours())+":"+pad(n.getMinutes())+":"+pad(n.getSeconds());

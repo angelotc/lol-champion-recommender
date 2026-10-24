@@ -130,3 +130,13 @@ def test_role_comes_from_assignment_only():
 
     assert Recommender.role_for(DraftState(my_position="middle")) == "middle"
     assert Recommender.role_for(DraftState(my_position="")) is None
+
+
+def test_parse_session_my_lock():
+    session = json.loads((Path(__file__).parent / "fixtures" / "session.json").read_text())
+    assert parse_session(session).my_locked == 0
+    for group in session["actions"]:
+        for a in group:
+            if a["type"] == "pick" and a["actorCellId"] == session["localPlayerCellId"]:
+                a.update(completed=True, championId=412)
+    assert parse_session(session).my_locked == 412

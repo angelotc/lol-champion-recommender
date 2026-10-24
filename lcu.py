@@ -171,6 +171,7 @@ class DraftState:
     enemies: list[int] = field(default_factory=list)
     bans: set[int] = field(default_factory=set)
     picked: set[int] = field(default_factory=set)
+    my_locked: int = 0  # champion the local player has locked in, 0 if not yet
 
 
 def _id(v) -> int:
@@ -205,6 +206,8 @@ def parse_session(session: dict) -> DraftState:
                 st.bans.add(cid)
             elif a.get("type") == "pick":
                 st.picked.add(cid)
+                if a.get("actorCellId") == st.my_cell_id:
+                    st.my_locked = cid
     st.picked |= {s.champion_id for s in st.allies if s.champion_id and not s.tentative}
     st.picked |= set(st.enemies)
     return st

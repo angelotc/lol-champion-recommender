@@ -18,6 +18,7 @@ import os
 import threading
 import time
 from ctypes import wintypes as w
+from dataclasses import replace
 from pathlib import Path
 
 import webview
@@ -63,6 +64,7 @@ class App:
         self.rec: Recommender | None = None
         self.lock = threading.RLock()  # evaluation runs from the LCU thread and from pill clicks
         self.last_draft: tuple[DraftState, set[int] | None] | None = None
+        self.frozen: DraftState | None = None  # draft as it was when you locked in
         self.last_status = ("Waiting for champ select...", "waiting")
 
     # -- page updates -----------------------------------------------------
@@ -108,7 +110,10 @@ class App:
                 return
             draft, pickable = self.last_draft
             try:
-                self.show_eval(self.rec.evaluate(draft, pickable))
+                ev = self.rec.evaluate(draft, pickable)
+                if self.frozen:  # teams stay live, recommendations stay as they were at lock-in
+                    ev.recs = self.rec.evaluate(self.frozen, pickable).recs
+                self.show_eval(ev)
             except Exception:
                 log.exception("evaluate failed")
                 self.status("Error scoring draft (see app.log)", "error")
@@ -126,6 +131,7 @@ class App:
             "status": "active",
             "message": "",
             "note": note,
+            "locked": champ(d.my_locked) if d.my_locked else None,
             "allies": [
                 champ(s.champion_id) | {"lane": s.position or ev.lanes.get(s.champion_id, ""),
                                         "tentative": s.tentative, "is_me": s.is_me}
@@ -152,13 +158,19 @@ class App:
     def on_session(self, session: dict | None, pickable: set[int] | None = None) -> None:
         with self.lock:
             if not session:
-                self.active, self.last_draft = False, None
+                self.active, self.last_draft, self.frozen = False, None, None
                 self.status("Waiting for champ select...")
                 return
             if not self.active:
                 self.user_hidden = False  # new draft: bring the panel back
+                self.frozen = None
             self.active = True
             draft = parse_session(session)
+            if draft.my_locked and not self.frozen:
+                # snapshot without your own pick excluded, so your champion stays in the list
+                self.frozen = replace(draft, picked=draft.picked - {draft.my_locked}, bans=set(draft.bans))
+            elif not draft.my_locked:
+                self.frozen = None
             if self.rec.role_for(draft) is None:
                 self.last_draft = None
                 self.status("No assigned role in this queue - recommendations need a position (draft or ranked).")
@@ -279,6 +291,7 @@ class App:
             TITLE, url=str(RESOURCES / "panel" / "index.html"), js_api=Api(self),
             width=300, height=800, frameless=True, on_top=True, focus=False,
             resizable=False, hidden=True, background_color="#010a13",
+            easy_drag=False,  # position is owned by the tracker; pywebview's drag also crashes here
         )
         self._install_quit_handler()
         webview.start(self.boot)
