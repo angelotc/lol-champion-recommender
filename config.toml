@@ -1,0 +1,34 @@
+# League champ-select pick recommender config
+role = "support"
+# Candidate pool (lolalytics slugs); only these are ranked
+champion_pool = ["thresh","nautilus","leona","lulu","nami","milio","karma","braum","rell","rakan"]
+tier = "master_plus"
+# Rolling window in days (not a specific patch)
+days = 14
+queue = "ranked"
+region = "all"
+# Shrinkage constant: deltas are scaled by games / (games + k)
+k = 500
+# Multiplier applied to synergy with allies that are only hovering
+tentative_factor = 0.5
+top_n = 8
+lockfile = 'C:\Riot Games\League of Legends\lockfile'
+
+[weights]
+base = 1.0
+
+# Importance of matchup vs enemy in each lane
+[weights.enemy]
+support = 1.0
+bottom = 1.0
+jungle = 0.5
+middle = 0.4
+top = 0.3
+
+# Importance of synergy with ally in each lane
+[weights.ally]
+bottom = 1.0
+jungle = 0.5
+middle = 0.4
+top = 0.3
+support = 0.0

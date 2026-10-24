@@ -1,0 +1,20 @@
+[project]
+name = "league-analysis"
+version = "0.1.0"
+description = "Live champ select pick recommender using the League client API and lolalytics stats"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28",
+    "pywebview>=5",
+    "rich>=14",
+    "websockets>=15",
+]
+
+[dependency-groups]
+build = [
+    "pyinstaller>=6.22.3",
+]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false

@@ -1,0 +1,30 @@
+{
+  "localPlayerCellId": 2,
+  "myTeam": [
+    {"cellId": 0, "assignedPosition": "top", "championId": 0, "championPickIntent": 0},
+    {"cellId": 1, "assignedPosition": "jungle", "championId": 0, "championPickIntent": 64},
+    {"cellId": 2, "assignedPosition": "utility", "championId": 0, "championPickIntent": 0},
+    {"cellId": 3, "assignedPosition": "bottom", "championId": 222, "championPickIntent": 0},
+    {"cellId": 4, "assignedPosition": "middle", "championId": 0, "championPickIntent": 0}
+  ],
+  "theirTeam": [
+    {"cellId": 5, "assignedPosition": "", "championId": 111},
+    {"cellId": 6, "assignedPosition": "", "championId": 0},
+    {"cellId": 7, "assignedPosition": "", "championId": 51},
+    {"cellId": 8, "assignedPosition": "", "championId": 0},
+    {"cellId": 9, "assignedPosition": "", "championId": 0}
+  ],
+  "bans": {"myTeamBans": [238, 777], "theirTeamBans": [157, 0]},
+  "actions": [
+    [
+      {"id": 0, "type": "ban", "completed": true, "championId": 238, "actorCellId": 0},
+      {"id": 1, "type": "ban", "completed": true, "championId": 103, "actorCellId": 5},
+      {"id": 2, "type": "ban", "completed": false, "championId": 0, "actorCellId": 1}
+    ],
+    [
+      {"id": 10, "type": "pick", "completed": true, "championId": 222, "actorCellId": 3},
+      {"id": 11, "type": "pick", "completed": true, "championId": 111, "actorCellId": 5},
+      {"id": 12, "type": "pick", "completed": false, "championId": 0, "actorCellId": 2}
+    ]
+  ]
+}

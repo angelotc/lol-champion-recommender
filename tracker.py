@@ -1,0 +1,124 @@
+"""Find the League client window and place the panel beside (or over) it. Windows only."""
+from __future__ import annotations
+
+import ctypes
+from ctypes import wintypes as w
+from dataclasses import dataclass
+
+user32 = ctypes.windll.user32
+user32.SetWindowPos.argtypes = [w.HWND, w.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, w.UINT]
+user32.ShowWindow.argtypes = [w.HWND, ctypes.c_int]
+user32.GetAncestor.argtypes = [w.HWND, w.UINT]
+user32.GetAncestor.restype = w.HWND
+user32.GetForegroundWindow.restype = w.HWND
+user32.MonitorFromWindow.argtypes = [w.HWND, w.DWORD]
+user32.MonitorFromWindow.restype = w.HMONITOR
+user32.GetMonitorInfoW.argtypes = [w.HMONITOR, ctypes.c_void_p]
+
+CLIENT_CLASS = "RCLIENT"
+CLIENT_TITLE = "League of Legends"
+PANEL_BASE = (300, 1080)  # panel width designed for a 1080px-tall client
+MIN_WIDTH = 240
+HWND_TOPMOST = w.HWND(-1)
+SWP_NOACTIVATE = 0x0010
+GA_ROOTOWNER = 3
+MONITOR_DEFAULTTONEAREST = 2
+
+
+class _MonitorInfo(ctypes.Structure):
+    _fields_ = [("cbSize", w.DWORD), ("rcMonitor", w.RECT), ("rcWork", w.RECT), ("dwFlags", w.DWORD)]
+
+
+@dataclass(frozen=True)
+class Rect:
+    left: int
+    top: int
+    right: int
+    bottom: int
+
+    @property
+    def width(self) -> int:
+        return self.right - self.left
+
+    @property
+    def height(self) -> int:
+        return self.bottom - self.top
+
+
+@dataclass(frozen=True)
+class Placement:
+    mode: str  # "dock-right" | "dock-left" | "overlay"
+    x: int
+    y: int
+    width: int
+    height: int
+    scale: float
+
+
+def make_dpi_aware() -> None:
+    try:
+        user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))  # per-monitor v2
+    except (AttributeError, OSError):
+        pass
+
+
+def find_client() -> int:
+    return user32.FindWindowW(CLIENT_CLASS, CLIENT_TITLE) or 0  # Riot Client shares the class
+
+
+def find_window(title: str) -> int:
+    return user32.FindWindowW(None, title) or 0
+
+
+def window_rect(hwnd: int) -> Rect:
+    r = w.RECT()
+    user32.GetWindowRect(hwnd, ctypes.byref(r))
+    return Rect(r.left, r.top, r.right, r.bottom)
+
+
+def work_area(hwnd: int) -> Rect:
+    mi = _MonitorInfo()
+    mi.cbSize = ctypes.sizeof(_MonitorInfo)
+    user32.GetMonitorInfoW(user32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), ctypes.byref(mi))
+    a = mi.rcWork
+    return Rect(a.left, a.top, a.right, a.bottom)
+
+
+def primary_work_area() -> Rect:
+    r = w.RECT()
+    user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(r), 0)  # SPI_GETWORKAREA
+    return Rect(r.left, r.top, r.right, r.bottom)
+
+
+def is_minimized(hwnd: int) -> bool:
+    return bool(user32.IsIconic(hwnd)) or not user32.IsWindowVisible(hwnd)
+
+
+def foreground_root() -> int:
+    fg = user32.GetForegroundWindow()
+    return (user32.GetAncestor(fg, GA_ROOTOWNER) or fg) if fg else 0
+
+
+def place(client: Rect, area: Rect) -> Placement:
+    """Dock right if there's room, else dock left, else overlay the client's right side."""
+    scale = client.height / PANEL_BASE[1]
+    width = max(MIN_WIDTH, round(PANEL_BASE[0] * scale))
+    scale = width / PANEL_BASE[0]
+    if area.right - client.right >= width:
+        return Placement("dock-right", client.right, client.top, width, client.height, scale)
+    if client.left - area.left >= width:
+        return Placement("dock-left", client.left - width, client.top, width, client.height, scale)
+    # no room outside: sit over the enemy team column, below the client's top bar
+    top = client.top + round(client.height * 0.12)
+    return Placement("overlay", client.right - width - round(8 * scale), top, width, round(client.height * 0.7), scale)
+
+
+def standalone(area: Rect) -> Placement:
+    """Placement with no client (replay/demo): right edge of the primary monitor."""
+    height = min(area.height, 1080)
+    width = max(MIN_WIDTH, round(PANEL_BASE[0] * height / PANEL_BASE[1]))
+    return Placement("dock-right", area.right - width, area.top, width, height, width / PANEL_BASE[0])
+
+
+def move(hwnd: int, p: Placement) -> None:
+    user32.SetWindowPos(hwnd, HWND_TOPMOST, p.x, p.y, p.width, p.height, SWP_NOACTIVATE)
