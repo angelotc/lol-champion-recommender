@@ -31,7 +31,7 @@ from paths import DATA_DIR, RESOURCES
 from scoring import LANES
 from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Stage
 
-TITLE = "League Pick Helper"
+TITLE = "LoL Companion"
 VISIBLE_STAGES = DRAFT_STAGES | PRE_DRAFT_STAGES  # never in game, loading or post-game
 MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT, WM_HOTKEY = 0x2, 0x4, 0x4000, 0x0312
 HOTKEYS = {1: "L", 2: "B"}  # Ctrl+Shift+L panel, Ctrl+Shift+B in-game panel

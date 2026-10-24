@@ -66,7 +66,7 @@
     if(!views[name])name="status";
     var parts=[];
     if(s.role)parts.push(cap(s.role));if(s.days!=null&&s.days!=="")parts.push(s.days+"d");
-    $("title").textContent=parts.length?parts.join(" · "):"Pick Recommender";
+    $("title").textContent=parts.length?parts.join(" · "):"LoL Companion";
     renderTiers(s);
     document.querySelectorAll("section.view").forEach(function(v){v.classList.toggle("hidden",v.dataset.view!==name)});
     renderTabs(s);

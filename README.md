@@ -1,4 +1,4 @@
-# LoL Champion Recommender
+# LoL Companion
 
 Live champ select pick recommender for League of Legends. Reads the draft from the local League
 Client API, detects the role you're assigned, pulls last-14-days matchup and synergy stats from
@@ -133,7 +133,7 @@ re-guessed around your choice. **Auto** goes back to the guess. Your choices res
 ```
 uv run --group build pyinstaller league_helper.spec --noconfirm
 ```
-Output: `dist/LeaguePickHelper/`. When packaged, config/cache/logs live in `%LOCALAPPDATA%\league-analysis\`.
+Output: `dist/LoLCompanion/`. When packaged, config/cache/logs live in `%LOCALAPPDATA%\league-analysis\`.
 
 ## Layout
 - `app.py`: window, docking and hotkeys. `controller.py` turns client updates into panel views
