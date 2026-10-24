@@ -35,6 +35,8 @@ TITLE = "League Pick Helper"
 VISIBLE_STAGES = DRAFT_STAGES | PRE_DRAFT_STAGES  # never in game, loading or post-game
 MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT, WM_HOTKEY = 0x2, 0x4, 0x4000, 0x0312
 HOTKEYS = {1: "L", 2: "B"}  # Ctrl+Shift+L panel, Ctrl+Shift+B in-game panel
+VK_SHIFT, VK_CONTROL = 0x10, 0x11
+KEY_POLL = 1 / 30  # seconds; in-game key check rate
 CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT = 0, 1, 2
 HANDLER_ROUTINE = ctypes.WINFUNCTYPE(w.BOOL, w.DWORD)
 
@@ -197,12 +199,38 @@ class App:
             if msg.wParam == 1:
                 self.ctl.user_hidden = not self.ctl.user_hidden
             elif msg.wParam == 2:
+                game = tracker.find_game()
+                if game and tracker.foreground_root() == game:
+                    continue  # ingame_keys handles it while the game is in front (no double toggle)
                 threading.Thread(target=self.ctl.toggle_ingame, daemon=True).start()
+
+    def ingame_keys(self) -> None:
+        """Ctrl+Shift+B while the game has focus. The game reads the keyboard in a mode that turns
+        off other programs' hotkeys while it's in front, so RegisterHotKey never fires there; poll
+        the key state instead, only while the game window is the foreground window."""
+        state = ctypes.windll.user32.GetAsyncKeyState
+        down = lambda vk: bool(state(vk) & 0x8000)
+        was = False
+        while True:
+            time.sleep(KEY_POLL)
+            try:
+                game = tracker.find_game()
+                if not game or tracker.foreground_root() != game:
+                    was = False
+                    continue
+                now = down(VK_CONTROL) and down(VK_SHIFT) and down(ord("B"))
+                if now and not was:
+                    log.info("in-game key Ctrl+Shift+B (stage %s)", self.ctl.session.stage.value)
+                    threading.Thread(target=self.ctl.toggle_ingame, daemon=True).start()
+                was = now
+            except Exception:
+                log.exception("in-game keys")
+                time.sleep(1.0)
 
     # -- startup ----------------------------------------------------------
     def boot(self) -> None:
         self.window.events.loaded.wait(15)
-        for target in (self.track, self.hotkey, self.ctl.live_loop):
+        for target in (self.track, self.hotkey, self.ingame_keys, self.ctl.live_loop):
             threading.Thread(target=target, daemon=True).start()
         try:
             self.ctl.boot()
