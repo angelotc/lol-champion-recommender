@@ -4,6 +4,11 @@ Live champ select pick recommender for League of Legends (support-first). Reads 
 local League Client API, pulls master+ / last-14-days matchup and synergy stats from lolalytics,
 and ranks picks from your champion pool. Shows a panel docked beside the League client.
 
+<img src="docs/panel.png" alt="Panel: allies, enemies with inferred lanes, bans, and ranked support picks with the matchups behind each score" width="300">
+
+Each score is the pick's baseline win rate plus weighted matchup deltas vs enemies and synergy deltas with allies;
+the lines under each pick show its two biggest contributions.
+
 ## Run
 ```
 uv sync
