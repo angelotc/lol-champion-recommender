@@ -79,7 +79,7 @@ def test_sync_history_stores_new_ranked_games_and_links_drafts(tmp_path):
     client = FakeClient([game(1, 89, True, created=now), game(2, 412, False, lane="NONE"), game(3, 89, True, queue=450)])
     assert lcu_data.sync_history(client, st) == 2  # ARAM (450) skipped
     assert lcu_data.sync_history(client, st) == 0  # already stored
-    assert st.champ_record(role="support") == {89: (1, 1), 412: (1, 0)}
+    assert st.champ_record(role="support") == {89: (1, 1, 1.0, 1.0), 412: (1, 0, 1.0, 0.0)}
     (d,) = st.drafts()
     assert d["game_id"] == 1 and d["result"] == "win"
 
@@ -89,3 +89,23 @@ def test_role_from_timeline():
     assert lcu_data.role_from_timeline({"lane": "BOTTOM", "role": "CARRY"}) == "bottom"
     assert lcu_data.role_from_timeline({"lane": "MIDDLE", "role": "SOLO"}) == "middle"
     assert lcu_data.role_from_timeline({"lane": "NONE", "role": "NONE"}) == ""
+
+
+def test_champ_record_decays_old_games(tmp_path):
+    st = Store(tmp_path / "s.sqlite")
+    now = time.time()
+    lcu_data.sync_history(FakeClient([game(1, 89, False, created=now - 180 * 86400), game(2, 89, True, created=now)]), st)
+    (g, w, eg, ew) = st.champ_record(role="support", half_life_days=90, now=now)[89]
+    assert (g, w) == (2, 1) and eg == pytest.approx(1.25) and ew == pytest.approx(1.0)
+    assert st.champ_record(role="support", now=now)[89] == (2, 1, 2.0, 1.0)  # half_life 0: no decay
+
+
+def test_comfort_terms_use_effective_counts_but_report_raw_games():
+    s = ChampStats(1, "support", 50.0, 10000)
+    (raw,) = comfort_terms(s, Comfort(2, 1), W)
+    (eff,) = comfort_terms(s, Comfort(2, 1, eff_games=1.25, eff_wins=1.0), W)
+    assert eff.games == 2 and eff.delta == pytest.approx(100 * 1.0 / 1.25 - 50)
+    assert eff.weighted == pytest.approx(eff.delta * 1.25 / (1.25 + 20) * 0.5)
+    assert raw.delta == 0 and comfort_terms(s, Comfort(2, 1, eff_games=0, eff_wins=0), W) == []
+    same = comfort_terms(s, Comfort(2, 1, eff_games=2.0, eff_wins=1.0), W)
+    assert same == [raw]  # no decay matches old behavior

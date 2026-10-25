@@ -86,12 +86,13 @@ class Controller:
         record = {}
         if self.store:
             try:
-                record = self.store.champ_record(role=role)
+                half_life = self.cfg.weights_for(role)["comfort"].get("half_life", 0)
+                record = self.store.champ_record(role=role, half_life_days=half_life)
             except Exception:
                 log.exception("champ record")
         out = {cid: Comfort(mastery=m.points) for cid, m in self.mastery.items()}
-        for cid, (games, wins) in record.items():
-            out[cid] = Comfort(games, wins, out[cid].mastery if cid in out else 0)
+        for cid, (games, wins, eff_games, eff_wins) in record.items():
+            out[cid] = Comfort(games, wins, out[cid].mastery if cid in out else 0, eff_games, eff_wins)
         return out
 
     def lobby_roles(self) -> list[str]:

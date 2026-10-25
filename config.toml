@@ -33,4 +33,5 @@ lockfile = 'C:\Riot Games\League of Legends\lockfile'
 # history = 0.5     # how much your win rate counts
 # mastery = 0.15    # bonus per log(1 + points / 1000), capped at mastery_cap
 # mastery_cap = 1.0
+# half_life = 90    # days; a game this old counts half (0 = no decay)
 # comfort_only = false   (top-level key: only recommend champions you've played or have mastery on)

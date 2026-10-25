@@ -79,6 +79,7 @@ you     = shrink(your_wr(c) − wr(c), your_games(c), 20) × 0.5   × w_comfort
 mastery = min(0.15 × ln(1 + points / 1000), 1.0)                × w_comfort
 
 shrink(δ, n, k) = δ × n / (n + k)        (k = 500: a 500-game sample counts half)
+your_wr, your_games: recency-weighted, each game × 0.5^(age / half_life), half_life = 90 days
 ```
 
 - **Δ** is lolalytics' normalized matchup/synergy delta (`d2`): how much better or worse `c` does
@@ -96,7 +97,7 @@ shrink(δ, n, k) = δ × n / (n + k)        (k = 500: a 500-game sample counts h
   | `w_ally` | – | 1.0 | 0.5 | 0.3 |
 
   `w_base` = 1.0 and `w_comfort` = 1.0 (`[comfort]` sets `weight`, `k`, `history`, `mastery`,
-  `mastery_cap`).
+  `mastery_cap`, `half_life`).
 
 The same pieces drive the other views:
 - **Ban threat** = `pick_rate / 100 × (harm + strength × w_enemy[L])`, summed over the lanes it plays,
@@ -163,7 +164,8 @@ or **windowed** display mode; exclusive fullscreen draws over any other window.
 Scores include what you're good at:
 - **you:** your win rate on the champion in that role minus everyone's, shrunk hard (k = 20)
   because personal samples are small. Comes from your ranked games, which the app copies from the
-  client's match history after every game (the client itself only shows ~20).
+  client's match history after every game (the client itself only shows ~20). Older games count
+  less: a game's weight halves every `half_life` days (default 90; 0 = no decay).
 - **mastery:** a small bonus for mastery points, capped at +1.0.
 
 Tune or turn it off in `config.toml` with `[comfort]` (`weight = 0` disables it), or set

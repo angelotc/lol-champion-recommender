@@ -147,17 +147,30 @@ class Store:
         self.update_draft(row["id"], game_id=game_id, result="win" if win else "loss")
         return True
 
-    def champ_record(self, role: str | None = None, queue: int | None = None) -> dict[int, tuple[int, int]]:
-        """Champion id -> (games, wins) from your stored games, optionally for one role/queue."""
-        sql, args = "SELECT champ, COUNT(*), SUM(win) FROM games WHERE 1=1", []
+    def champ_record(self, role: str | None = None, queue: int | None = None, half_life_days: float = 0,
+                     now: float | None = None) -> dict[int, tuple[int, int, float, float]]:
+        """Champion id -> (games, wins, eff_games, eff_wins) from your stored games, optionally for one
+        role/queue. eff_* weight each game by 0.5 ** (age_days / half_life_days); no decay if half_life_days <= 0."""
+        where, args = " WHERE 1=1", []
         if role:
-            sql += " AND role=?"
+            where += " AND role=?"
             args.append(role)
         if queue is not None:
-            sql += " AND queue=?"
+            where += " AND queue=?"
             args.append(queue)
-        rows = self._exec(sql + " GROUP BY champ", args).fetchall()
-        return {c: (n, w or 0) for c, n, w in rows}
+        if half_life_days <= 0:
+            rows = self._exec("SELECT champ, COUNT(*), SUM(win) FROM games" + where + " GROUP BY champ", args).fetchall()
+            return {c: (n, w or 0, float(n), float(w or 0)) for c, n, w in rows}
+        now = time.time() if now is None else now
+        out: dict[int, list] = {}
+        for champ, win, created in self._exec("SELECT champ, win, created FROM games" + where, args).fetchall():
+            weight = 0.5 ** (max(0.0, now - (created or now)) / 86400 / half_life_days)
+            r = out.setdefault(champ, [0, 0, 0.0, 0.0])
+            r[0] += 1
+            r[1] += 1 if win else 0
+            r[2] += weight
+            r[3] += weight if win else 0.0
+        return {c: (r[0], r[1], r[2], r[3]) for c, r in out.items()}
 
     def close(self) -> None:
         with self.lock:

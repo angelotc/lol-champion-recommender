@@ -31,6 +31,8 @@ class Comfort:
     games: int = 0
     wins: int = 0
     mastery: int = 0
+    eff_games: float | None = None  # recency-weighted games/wins; used for the win rate when set
+    eff_wins: float | None = None
 
 
 @dataclass
@@ -62,10 +64,12 @@ def comfort_terms(s: ChampStats, c: Comfort | None, w: dict) -> list[Contributio
     if c is None or not w or not w.get("weight"):
         return []
     out = []
-    if c.games:
-        delta = 100 * c.wins / c.games - s.wr
+    eff = c.games if c.eff_games is None else c.eff_games
+    if c.games and eff > 0:
+        wins = c.wins if c.eff_games is None else c.eff_wins or 0.0
+        delta = 100 * wins / eff - s.wr
         out.append(Contribution("you", s.champion_id, s.lane, delta, c.games,
-                                shrink(delta, c.games, w.get("k", 20)) * w.get("history", 0.5) * w["weight"]))
+                                shrink(delta, eff, w.get("k", 20)) * w.get("history", 0.5) * w["weight"]))
     if c.mastery > 0 and w.get("mastery"):
         bonus = min(log1p(c.mastery / 1000) * w["mastery"], w.get("mastery_cap", 1.0))
         out.append(Contribution("mastery", s.champion_id, s.lane, float(c.mastery), 0, bonus * w["weight"]))
