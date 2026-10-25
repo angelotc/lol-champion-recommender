@@ -19,7 +19,7 @@ vs Caitlyn, Nautilus, Hwei and Viego.
 | Queue | Bans | Picks + draft estimate |
 |---|---|---|
 | <img src="docs/views/1-queue.png" width="240"> | <img src="docs/views/2-bans.png" width="240"> | <img src="docs/views/3-picks.png" width="240"> |
-| Stats for your preferred roles preload while you queue. | Ban suggestions vs your likely picks (Kai'Sa expanded). | Your draft's estimated win % with the biggest reasons, then ranked picks (Leona expanded). |
+| Stats for your preferred roles preload while you queue. | Optional ban suggestions (`show_ban_suggestions`), Kai'Sa expanded. | Your draft's estimated win % with the biggest reasons, then ranked picks (Leona expanded). |
 
 | Flex lane picker | Build after lock-in | In game (Ctrl+Shift+B) |
 |---|---|---|
@@ -82,7 +82,10 @@ calibrated: backtesting against your recorded drafts and results is what will tu
 In the lobby and in queue the panel loads stats for your first and second position preference
 in the background, so recommendations are ready the moment champ select opens.
 
-During the ban phase the panel shows **Bans**: enemy champions worth banning, scored by how
+Recommendations start with the **first locked pick** of the draft (either team), or when your turn
+starts if you're first pick. Before that, including the whole ban phase, the panel just shows where
+the draft is. Set `show_ban_suggestions = true` in `config.toml` to see **Bans** there
+instead: enemy champions worth banning, scored by how
 likely you are to face them (their pick rate in each lane) times how much they hurt you (how
 your likely picks do against them, shrunk by games, plus their own strength), weighted by lane.
 Hover a suggestion to see the matchup against each of your picks. Your team's picks and hovers

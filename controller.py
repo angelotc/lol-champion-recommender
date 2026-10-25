@@ -135,6 +135,13 @@ class Controller:
             if not self.rec or self.rec.role_for(s.draft) is None:
                 self.show_status("No assigned role in this queue - recommendations need a position (draft or ranked).")
                 return
+            if stage == Stage.BAN and not self.cfg.show_ban_suggestions:
+                self.push(views.status(self.header(self.rec.role_for(s.draft)), views.BAN_MESSAGE))
+                return
+            if stage == Stage.PICK and not (s.draft.picked or s.draft.my_turn):
+                # recommendations start with the first locked pick (or your turn, if you're first)
+                self.push(views.status(self.header(self.rec.role_for(s.draft)), views.FIRST_PICK_MESSAGE))
+                return
             tabs = {}
             if stage in STAGE_TABS:
                 tabs = {"tabs": STAGE_TABS[stage], "tab": self.tab if self.tab in STAGE_TABS[stage] else STAGE_TABS[stage][0]}

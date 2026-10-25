@@ -13,6 +13,8 @@ from state import Stage
 TIERS = {"master_plus": "Master+", "grandmaster_plus": "GM+", "challenger": "Challenger"}
 LOW_DATA = 0.25  # below this share of possible matchups found, warn that the tier is thin
 FLEX = 10.0  # an enemy whose second most played lane is at least this % is marked as a flex pick
+BAN_MESSAGE = "Ban phase - recommendations appear after the first pick."
+FIRST_PICK_MESSAGE = "Waiting for the first pick..."
 STAGE_MESSAGES = {
     Stage.IDLE: "Waiting for champ select...",
     Stage.LOBBY: "In lobby - waiting for you to queue...",

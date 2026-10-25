@@ -208,6 +208,7 @@ class DraftState:
     bans: set[int] = field(default_factory=set)
     picked: set[int] = field(default_factory=set)
     my_locked: int = 0  # champion the local player has locked in, 0 if not yet
+    my_turn: bool = False  # your pick is in progress right now
 
 
 def _id(v) -> int:
@@ -233,7 +234,11 @@ def parse_session(session: dict) -> DraftState:
         st.bans |= {c for c in bans.get(key) or [] if _id(c) > 0}
     for group in session.get("actions") or []:
         for a in group if isinstance(group, list) else [group]:
-            if not isinstance(a, dict) or not a.get("completed"):
+            if not isinstance(a, dict):
+                continue
+            if a.get("type") == "pick" and a.get("isInProgress") and a.get("actorCellId") == st.my_cell_id:
+                st.my_turn = True
+            if not a.get("completed"):
                 continue
             cid = _id(a.get("championId"))
             if cid <= 0:

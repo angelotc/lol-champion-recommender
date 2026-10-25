@@ -40,6 +40,7 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     states: list[dict] = []
     ctl = Controller(load_config(), states.append)
+    ctl.cfg.show_ban_suggestions = True  # render the optional bans view too
     ctl.boot()
     ids = lambda *names: [ctl.rec.champs.id_from_slug(n) for n in names]
     shots: dict[str, tuple[dict, list[str], int, str]] = {}
