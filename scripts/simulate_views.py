@@ -81,7 +81,7 @@ def main() -> None:
     ctl.render()
     shots["5-build"] = (states[-1], [], 1600, "")
 
-    # in game (Ctrl+Shift+B): Leona at level 9 with support item and boots
+    # in game (Ctrl+X): Leona at level 9 with support item and boots
     ctl.session.draft = ctl.session.frozen = None
     ctl.session.phase, ctl.ingame_shown = "InProgress", True
     enemies = dict(zip(["bottom", "support", "middle", "jungle"], ["Caitlyn", "Nautilus", "Hwei", "Viego"]))

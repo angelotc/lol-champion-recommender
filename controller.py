@@ -66,7 +66,7 @@ class Controller:
         self._synced_at = 0.0
         self.preload: str = ""             # progress line while preloading in lobby/queue
         self._preloaded: set[tuple[str, str]] = set()
-        self.ingame_shown = False          # Ctrl+Shift+B; stays as you left it for the next game
+        self.ingame_shown = False          # Ctrl+X in game; stays as you left it for the next game
         self.live: LiveGame | None = None
         self.last_role: str = ""           # role from your last draft (games without positions)
         self._live_client: LiveClient | None = None

@@ -1,4 +1,4 @@
-/* In game (Ctrl+Shift+B): the build planned before the game, with what you already own.
+/* In game (Ctrl+X): the build planned before the game, with what you already own.
    Read-only and click-through: only your own items and gold are used, never the enemies'. */
 (function(L){
   var $=L.$,el=L.el,lane=L.lane,icon=L.icon,fmt=L.fmt,cls=L.cls,clear=L.clear;

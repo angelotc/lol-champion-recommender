@@ -21,7 +21,7 @@ vs Caitlyn, Nautilus, Hwei and Viego.
 | <img src="docs/views/1-queue.png" width="240"> | <img src="docs/views/2-bans.png" width="240"> | <img src="docs/views/3-picks.png" width="240"> |
 | Stats for your preferred roles preload while you queue. | Optional ban suggestions (`show_ban_suggestions`), Kai'Sa expanded. | Your draft's estimated win % with the biggest reasons, then ranked picks (Leona expanded). |
 
-| Flex lane picker | Build after lock-in | In game (Ctrl+Shift+B) |
+| Flex lane picker | Build after lock-in | In game (Ctrl+X) |
 |---|---|---|
 | <img src="docs/views/4-flex.png" width="240"> | <img src="docs/views/5-build.png" width="240"> | <img src="docs/views/6-ingame.png" width="240"> |
 | Click an enemy to set their lane (Hwei: mid 66%, bot 24%). | Runes, spells, skills and items with Δ vs your lane opponents. | Core build with owned items ticked, gold to the next item, skill order at your level. |
@@ -37,7 +37,7 @@ uv run pytest
 ```
 The panel shows while the League client is in front: in the lobby, in queue and at the ready check
 it shows where you are, and in champ select it shows the recommendations. It hides in game.
-Ctrl+Shift+L toggles the panel, Ctrl+Shift+B the in-game panel. Ctrl+C in the terminal quits.
+**Ctrl+X** toggles the panel while the League client (or the panel) is in front; in game it toggles the in-game panel. It only listens while League is the active window, so Ctrl+X is still cut everywhere else. Ctrl+Shift+L also toggles the panel from any window. Ctrl+C in the terminal quits.
 
 ## Rank tier
 The pill at the top of the panel switches the stats between **Master+**, **GM+** and **Challenger**.
@@ -104,8 +104,8 @@ games hidden). Positive means it does better than usual in this matchup. The str
 **BEST VS LANE**; hover any option for each opponent. Nothing is imported into the client: you
 set your runes and items yourself.
 
-## In game (Ctrl+Shift+B)
-Press **Ctrl+Shift+B** in game to show a compact build panel on the right edge of the game,
+## In game (Ctrl+X)
+Press **Ctrl+X** in game to show a compact build panel on the right edge of the game,
 above the minimap (press again to hide; it remembers your choice for the next game). It shows
 your core build with the items you already own ticked, the next item and how much more gold it
 needs, item options with their Δ vs your lane opponents, and the skill order at your level.

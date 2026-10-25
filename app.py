@@ -5,7 +5,7 @@
   uv run app.py --replay drafts/x.jsonl  replay a recorded draft (panel always shown)
   uv run app.py --simulate --role middle --allies jinx --enemies syndra,leesin
 
-Ctrl+Shift+L toggles the panel. Ctrl+Shift+B toggles the in-game build panel.
+Ctrl+X (with League in front) toggles the panel; in game it toggles the in-game build panel.
 """
 from __future__ import annotations
 
@@ -34,8 +34,9 @@ from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Stage
 TITLE = "LoL Companion"
 VISIBLE_STAGES = DRAFT_STAGES | PRE_DRAFT_STAGES  # never in game, loading or post-game
 MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT, WM_HOTKEY = 0x2, 0x4, 0x4000, 0x0312
-HOTKEYS = {1: "L", 2: "B"}  # Ctrl+Shift+L panel, Ctrl+Shift+B in-game panel
-VK_SHIFT, VK_CONTROL = 0x10, 0x11
+HOTKEYS = {1: "L"}  # Ctrl+Shift+L panel, from anywhere (fallback; Ctrl+X is polled, see toggle_keys)
+VK_SHIFT, VK_CONTROL, VK_MENU = 0x10, 0x11, 0x12
+TOGGLE_KEY = "X"  # Ctrl+X while the client, the panel or the game is in front
 KEY_POLL = 1 / 30  # seconds; in-game key check rate
 CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT = 0, 1, 2
 HANDLER_ROUTINE = ctypes.WINFUNCTYPE(w.BOOL, w.DWORD)
@@ -135,7 +136,7 @@ class App:
     def _target(self, panel: int) -> tuple[tracker.Placement | None, bool]:
         """Where the panel should be and whether it may show there."""
         if not self.always_show and self.ctl.session.stage == Stage.INGAME:
-            game = tracker.find_game()  # in game: only after Ctrl+Shift+B, over the game's right edge
+            game = tracker.find_game()  # in game: only after Ctrl+X, over the game's right edge
             if not (game and self.ctl.ingame_shown) or tracker.is_minimized(game):
                 return None, False
             return tracker.place_ingame(tracker.window_rect(game)), tracker.foreground_root() in (game, panel)
@@ -198,30 +199,30 @@ class App:
             log.info("hotkey Ctrl+Shift+%s (stage %s)", HOTKEYS.get(msg.wParam, "?"), self.ctl.session.stage.value)
             if msg.wParam == 1:
                 self.ctl.user_hidden = not self.ctl.user_hidden
-            elif msg.wParam == 2:
-                game = tracker.find_game()
-                if game and tracker.foreground_root() == game:
-                    continue  # ingame_keys handles it while the game is in front (no double toggle)
-                threading.Thread(target=self.ctl.toggle_ingame, daemon=True).start()
 
-    def ingame_keys(self) -> None:
-        """Ctrl+Shift+B while the game has focus. The game reads the keyboard in a mode that turns
-        off other programs' hotkeys while it's in front, so RegisterHotKey never fires there; poll
-        the key state instead, only while the game window is the foreground window."""
+    def toggle_keys(self) -> None:
+        """Ctrl+X while League is in front: in game it toggles the in-game panel, otherwise the
+        panel. The game reads the keyboard in a mode that turns off other programs' hotkeys, so
+        RegisterHotKey never fires there; poll the key state instead. Polling doesn't consume the
+        key, and it's only checked while the client, the panel or the game is the foreground
+        window, so Ctrl+X stays cut everywhere else."""
         state = ctypes.windll.user32.GetAsyncKeyState
         down = lambda vk: bool(state(vk) & 0x8000)
         was = False
         while True:
             time.sleep(KEY_POLL)
             try:
-                game = tracker.find_game()
-                if not game or tracker.foreground_root() != game:
+                game, front = tracker.find_game(), tracker.foreground_root()
+                if not front or front not in (game, tracker.find_client(), tracker.find_window(TITLE)):
                     was = False
                     continue
-                now = down(VK_CONTROL) and down(VK_SHIFT) and down(ord("B"))
+                now = down(VK_CONTROL) and not down(VK_SHIFT) and not down(VK_MENU) and down(ord(TOGGLE_KEY))
                 if now and not was:
-                    log.info("in-game key Ctrl+Shift+B (stage %s)", self.ctl.session.stage.value)
-                    threading.Thread(target=self.ctl.toggle_ingame, daemon=True).start()
+                    log.info("key Ctrl+%s (stage %s)", TOGGLE_KEY, self.ctl.session.stage.value)
+                    if game:
+                        threading.Thread(target=self.ctl.toggle_ingame, daemon=True).start()
+                    else:
+                        self.ctl.user_hidden = not self.ctl.user_hidden
                 was = now
             except Exception:
                 log.exception("in-game keys")
@@ -230,7 +231,7 @@ class App:
     # -- startup ----------------------------------------------------------
     def boot(self) -> None:
         self.window.events.loaded.wait(15)
-        for target in (self.track, self.hotkey, self.ingame_keys, self.ctl.live_loop):
+        for target in (self.track, self.hotkey, self.toggle_keys, self.ctl.live_loop):
             threading.Thread(target=target, daemon=True).start()
         try:
             self.ctl.boot()
