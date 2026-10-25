@@ -23,6 +23,7 @@ from pathlib import Path
 import webview
 
 import tracker
+import updater
 from config import load_config
 from controller import Controller
 from data.store import Store
@@ -30,6 +31,7 @@ from lcu import DraftState, LcuClient, Slot, read_lockfile, watch_session
 from paths import DATA_DIR, RESOURCES
 from scoring import LANES
 from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Stage
+from tray import Tray
 
 TITLE = "LoL Companion"
 VISIBLE_STAGES = DRAFT_STAGES | PRE_DRAFT_STAGES  # never in game, loading or post-game
@@ -38,6 +40,7 @@ HOTKEYS = {1: "L"}  # Ctrl+Shift+L panel, from anywhere (fallback; Ctrl+X is pol
 VK_SHIFT, VK_CONTROL, VK_MENU = 0x10, 0x11, 0x12
 TOGGLE_KEY = "X"  # Ctrl+X while the client, the panel or the game is in front
 KEY_POLL = 1 / 30  # seconds; in-game key check rate
+UPDATE_EVERY = 6 * 3600  # seconds between update checks
 CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT = 0, 1, 2
 HANDLER_ROUTINE = ctypes.WINFUNCTYPE(w.BOOL, w.DWORD)
 
@@ -70,6 +73,25 @@ class App:
         self.window: webview.Window | None = None
         live = not self.always_show
         self.ctl = Controller(load_config(args.config), self.push, Store() if live else None)
+        self.updater = updater.Updater(on_change=lambda: self.tray.on_update())
+        self.tray = Tray(self.toggle_panel, self.quit, self.updater, self.restart)
+
+    def toggle_panel(self) -> None:
+        self.ctl.user_hidden = not self.ctl.user_hidden
+
+    def quit(self) -> None:
+        self.tray.stop()  # before the window closes, so no ghost icon is left behind
+        self.updater.apply_on_exit()
+        self.window.destroy()  # webview.start returns and run() exits
+
+    def restart(self) -> None:
+        self.tray.stop()  # the new version adds its own icon
+        self.updater.apply_and_restart()
+
+    def check_updates(self) -> None:
+        while True:
+            self.updater.check_async()
+            time.sleep(UPDATE_EVERY)
 
     # -- page updates -----------------------------------------------------
     def js(self, code: str) -> None:
@@ -233,6 +255,9 @@ class App:
         self.window.events.loaded.wait(15)
         for target in (self.track, self.hotkey, self.toggle_keys, self.ctl.live_loop):
             threading.Thread(target=target, daemon=True).start()
+        self.tray.start()
+        if not self.always_show:
+            threading.Thread(target=self.check_updates, daemon=True).start()
         try:
             self.ctl.boot()
             if self.args.simulate:
@@ -263,6 +288,7 @@ class App:
         @HANDLER_ROUTINE
         def on_console_event(event: int) -> bool:
             if event in (CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT):
+                self.tray.stop()
                 self.window.destroy()
                 return True
             return False
@@ -272,6 +298,7 @@ class App:
 
 
 def main() -> None:
+    updater.startup()  # Velopack hooks first; may exit the process
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config")
     ap.add_argument("--record", type=Path, help="append each live session update to this .jsonl file")

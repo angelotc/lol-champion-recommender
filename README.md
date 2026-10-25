@@ -1,204 +1,119 @@
 # LoL Companion
 
-Live champ select pick recommender for League of Legends. Reads the draft from the local League
-Client API, detects the role you're assigned, pulls last-14-days matchup and synergy stats from
-lolalytics, and ranks every viable champion you own for that role. Shows a panel docked beside
-the League client.
+A panel that docks beside the League client and ranks your best picks in champ select, using
+matchup and synergy stats, your team and theirs, and your own record. After you lock in it shows
+runes and builds; in game, a compact build panel.
 
-![Live ranked champ select with the panel docked to the right of the League client: Nautilus locked in, picks frozen, top pick Maokai expanded to show its matchup and synergy deltas](docs/client.png)
+![Panel docked beside the League client in champ select](docs/client.png)
 
-Each score is the pick's baseline win rate plus weighted matchup deltas vs enemies and synergy deltas with allies;
-the lines under each pick show its two biggest contributions. Hover or click a pick to see every
-matchup and synergy behind its score: the delta, the games it's based on, and its weighted value.
-The formula is in [How picks are scored](#how-picks-are-scored).
+## Install
+Download **[LoLCompanion-win-Setup.exe](https://github.com/angelotc/lol-companion/releases/latest/download/LoLCompanion-win-Setup.exe)**
+and run it. It installs for your Windows account (no admin) and updates itself.
 
-## Views
-Every stage has its own view. These are simulated (`uv run scripts/simulate_views.py`), using the
-real controller and live lolalytics data: support with K'Sante (hovering), Lee Sin, Ahri and Jinx
-vs Caitlyn, Nautilus, Hwei and Viego.
+Portable instead: [LoLCompanion.zip](https://github.com/angelotc/lol-companion/releases/latest/download/LoLCompanion.zip)
+(unzip, run `LoLCompanion.exe`; no auto-updates).
 
-| Queue | Bans | Picks + draft estimate |
+Windows may warn that the app is unrecognized (it isn't code-signed): **More info → Run anyway**.
+
+## Use
+The panel appears on its own while the League client is in front and hides in game.
+
+| Key | Does |
+|---|---|
+| **Ctrl+X** | Toggle the panel (client in front) or the in-game panel (in game) |
+| **Ctrl+Shift+L** | Toggle the panel from any window |
+
+The **tray icon** (bottom-right) shows/hides the panel, checks for updates, opens settings, turns
+on Start with Windows, and quits.
+
+| Queue | Bans | Picks |
 |---|---|---|
 | <img src="docs/views/1-queue.png" width="240"> | <img src="docs/views/2-bans.png" width="240"> | <img src="docs/views/3-picks.png" width="240"> |
-| Stats for your preferred roles preload while you queue. | Optional ban suggestions (`show_ban_suggestions`), Kai'Sa expanded. | Your draft's estimated win % with the biggest reasons, then ranked picks (Leona expanded). |
+| Stats preload for your roles. | Ban suggestions (optional). | Draft win estimate, then ranked picks. |
 
-| Flex lane picker | Build after lock-in | In game (Ctrl+X) |
+| Flex lanes | Build | In game |
 |---|---|---|
 | <img src="docs/views/4-flex.png" width="240"> | <img src="docs/views/5-build.png" width="240"> | <img src="docs/views/6-ingame.png" width="240"> |
-| Click an enemy to set their lane (Hwei: mid 66%, bot 24%). | Runes, spells, skills and items with Δ vs your lane opponents. | Core build with owned items ticked, gold to the next item, skill order at your level. |
+| Click an enemy to set their lane. | Runes, spells, items vs your lane. | Core build, gold to next item, skills. |
 
-## Run
-```
-uv sync
-uv run app.py                            # live
-uv run app.py --record drafts/x.jsonl    # live + record the draft
-uv run app.py --replay drafts/x.jsonl    # replay a recorded draft
-uv run app.py --simulate --role support --allies jinx,leesin --enemies nautilus,caitlyn --bans pyke
-uv run pytest
-```
-The panel shows while the League client is in front: in the lobby, in queue and at the ready check
-it shows where you are, and in champ select it shows the recommendations. It hides in game.
-**Ctrl+X** toggles the panel while the League client (or the panel) is in front; in game it toggles the in-game panel. It only listens while League is the active window, so Ctrl+X is still cut everywhere else. Ctrl+Shift+L also toggles the panel from any window. Ctrl+C in the terminal quits.
+- **Picks** start at the first locked pick. Hover a pick to see every term behind its score.
+- **Rank tier** (pill at the top): Master+, GM+ or Challenger. Higher tiers have fewer games.
+- **Enemy lanes** are guessed from play rates; flex picks get a gold dot. Click to override.
+- **Build:** each option shows its Δ vs your lane opponents; the best is tagged **BEST VS LANE**.
+- **In game** needs borderless or windowed mode. Clicks pass through it.
 
-## Rank tier
-The pill at the top of the panel switches the stats between **Master+**, **GM+** and **Challenger**.
-The choice is remembered between runs. Each tier is cached separately for the day.
+## Settings
+`config.toml` (tray → Open settings; installed copy lives in `%LOCALAPPDATA%\league-analysis\`):
 
-Higher tiers have far fewer games. Over 14 days, lolalytics lists about 54 support matchups for Thresh
-at Master+, 14 at GM+ and none at Challenger. When few matchups are available, the panel says so and the
-scores mostly reflect each champion's overall win rate. Lane guessing for enemies always uses
-Master+ data.
-
-## Roles
-The role always comes from your assigned position in champ select (ranked and normal draft). Queues
-that don't assign positions (blind pick, ARAM) show a notice instead of recommendations.
-
-Edit `config.toml` to set:
-- **`min_pick_rate`** (default 1.0): candidates are every champion on lolalytics' tier list for your
-  role with at least this % pick rate (Master+, 14 days), narrowed to champions you own. About 35-50
-  per role at 1%. Lower it to include off-meta picks.
-- **Lane weights:** by default your lane opponent counts most, bot and support also weigh the enemy
-  duo and their own duo partner, and the jungler matters to every lane. Override them per role under
-  `[weights.<role>]`.
-- **`k`:** sample-size shrinkage. Lower it if rankings feel too flat with thin master+ samples.
-
-The first draft in a role each day loads stats for that role's candidates, about 6 requests each,
-6 at a time, around 10-30 seconds; after that they come from cache.
+| Key | Default | |
+|---|---|---|
+| `min_pick_rate` | 1.0 | Min pick rate % to be a candidate. Lower for off-meta picks. |
+| `show_ban_suggestions` | false | Show bans during the ban phase. |
+| `comfort_only` | false | Only recommend champions you've played. |
+| `[comfort]` | | `weight` (0 = off), `k`, `history`, `half_life`, `mastery`, `mastery_cap` |
+| `[weights.<role>]` | | Per-role lane weights. |
+| `[odds]` | | Draft win estimate weights. |
 
 ## How picks are scored
-Every candidate (tier-list champions for your role with at least `min_pick_rate` % pick rate) gets one
-score in win-rate percentage points; the panel ranks by it and shows each term.
+One score per candidate, in win-rate points:
 
 ```
 score(c) = base + Σ vs + Σ with + you + mastery
 
 base    = shrink(wr(c) − avg_wr, games(c), k)                   × w_base
-vs      = shrink(Δ(c vs enemy in lane L), games, k)             × w_enemy[L]     each known enemy
-with    = shrink(Δ(c with ally in lane L), games, k)            × w_ally[L]      each ally (× 0.5 if only hovered)
+vs      = shrink(Δ(c vs enemy in lane L), games, k)             × w_enemy[L]   each known enemy
+with    = shrink(Δ(c with ally in lane L), games, k)            × w_ally[L]    each ally (× 0.5 if hovered)
 you     = shrink(your_wr(c) − wr(c), your_games(c), 20) × 0.5   × w_comfort
 mastery = min(0.15 × ln(1 + points / 1000), 1.0)                × w_comfort
 
-shrink(δ, n, k) = δ × n / (n + k)        (k = 500: a 500-game sample counts half)
-your_wr, your_games: recency-weighted, each game × 0.5^(age / half_life), half_life = 90 days
+shrink(δ, n, k) = δ × n / (n + k)     k = 500: a 500-game sample counts half
+your games are weighted 0.5^(age / half_life), half_life = 90 days
 ```
 
-- **Δ** is lolalytics' normalized matchup/synergy delta (`d2`): how much better or worse `c` does
-  with or against that champion than the two champions' own win rates predict. Enemy lanes are
-  inferred from play rates, or set by hand (flex picks).
-- **wr, games, avg_wr** are `c`'s win rate and games in your role and the role's average win rate,
-  at your rank tier over the last 14 days.
-- **shrink** pulls small samples toward 0, so a +6 matchup over 80 games counts less than +2 over
-  5,000.
-- **Default lane weights** (`[weights.<role>]` overrides):
+- **Δ**: lolalytics' normalized delta: how much better `c` does with/against a champion than
+  both champions' win rates predict.
+- **wr, games, avg_wr**: your role, your tier, last 14 days.
 
-  | | your lane | your duo's lane (bot/sup) | jungle (or you're jungle) | other lanes |
-  |---|---|---|---|---|
-  | `w_enemy` | 1.0 | 1.0 | 0.5 | 0.3 |
-  | `w_ally` | – | 1.0 | 0.5 | 0.3 |
+| Lane weight | your lane | duo lane (bot/sup) | jungle | other |
+|---|---|---|---|---|
+| `w_enemy` | 1.0 | 1.0 | 0.5 | 0.3 |
+| `w_ally` | – | 1.0 | 0.5 | 0.3 |
 
-  `w_base` = 1.0 and `w_comfort` = 1.0 (`[comfort]` sets `weight`, `k`, `history`, `mastery`,
-  `mastery_cap`, `half_life`).
+- **Ban threat** = `pick_rate × (harm to your picks + strength × w_enemy)`, summed over lanes.
+- **Build Δ** = `shrink((wr_option_vs − wr_vs) − (wr_option − wr), games, 300)`, hidden under 100 games.
+- **Draft win estimate**: champion strength (half weight) + cross-team matchups (1.0 same lane, 0.7
+  bot duos, 0.35 other) + synergy (half weight), capped 25–75%. Not yet calibrated.
 
-The same pieces drive the other views:
-- **Ban threat** = `pick_rate / 100 × (harm + strength × w_enemy[L])`, summed over the lanes it plays,
-  where harm is how much worse your top picks do against it (their weighted `vs` terms, averaged and
-  negated) and strength is its own shrunk win-rate delta.
-- **Build Δ** for a rune/item/spell vs your lane opponent =
-  `shrink((wr_with_option_vs − wr_vs) − (wr_with_option − wr), matchup games, 300)`, shown only with
-  100+ matchup games.
-- **Draft win estimate**: see below.
+## APIs
+| API | Used for |
+|---|---|
+| [League Client API](https://developer.riotgames.com/docs/lol#league-client-api) (local, read-only) | Champ select (`/lol-champ-select/v1/session`, pickable champions), game phase, lobby, match history, mastery, patch version |
+| [Live Client Data API](https://developer.riotgames.com/docs/lol#game-client-api) (`127.0.0.1:2999`) | In game: your champion, items, gold, level, and each player's champion/position. No enemy items or timers. |
+| [lolalytics](https://lolalytics.com) (unofficial, may change) | Win rates, matchups, synergies, builds. Cached 24h. |
+| [Data Dragon](https://ddragon.leagueoflegends.com) + [CommunityDragon](https://raw.communitydragon.org) | Champion, item and rune data and images |
+| GitHub Releases (via [Velopack](https://velopack.io)) | Auto-updates |
 
-## Draft win estimate
-The top of the picks view shows your team's estimated win % vs theirs, updated with every pick,
-hover and lane change, plus the biggest reasons ("+0.9 strong pick: Jinx", "-0.8 synergy:
-Nautilus + Hwei"). It adds, in percentage points:
-- each champion's own strength in its lane (`base` above, at half weight because summing
-  five deltas overstates),
-- every cross-team matchup delta, measured from both champions' sides and averaged, weighted 1.0
-  for the same lane, 0.7 between the bot-lane duos and 0.35 across other lanes,
-- synergy between teammates (half weight); hovers count half; capped at 25-75%.
+Nothing is injected into the client or the game.
 
-Stats for all 10 champions load in the background as they're picked. It's an **estimate**, not yet
-calibrated: backtesting against your recorded drafts and results is what will tune these weights
-(`[odds]` in `config.toml` overrides them).
-
-## Lobby, queue and bans
-In the lobby and in queue the panel loads stats for your first and second position preference
-in the background, so recommendations are ready the moment champ select opens.
-
-Recommendations start with the **first locked pick** of the draft (either team), or when your turn
-starts if you're first pick. Before that, including the whole ban phase, the panel just shows where
-the draft is. Set `show_ban_suggestions = true` in `config.toml` to see **Bans** there
-instead: enemy champions worth banning, scored by how
-likely you are to face them (their pick rate in each lane) times how much they hurt you (how
-your likely picks do against them, shrunk by games, plus their own strength), weighted by lane.
-Hover a suggestion to see the matchup against each of your picks. Your team's picks and hovers
-and your own top picks are never suggested. Switch to **Picks** with the tab at the top.
-
-## After you lock in: runes and build
-The panel switches to **Build** for your champion in your role (the **Picks** tab still shows the
-frozen recommendations): rune pages (most picked and highest win rate), keystones, summoner
-spells, skill order, start items, core paths, boots and each item slot, with win rate, pick rate
-and games.
-
-Every option also gets a **Δ vs your lane opponents** (your lane, plus the enemy duo for bot and
-support), read from lolalytics' matchup build pages: `(option win rate vs them - your win rate vs
-them) - (option win rate overall - your win rate overall)`, shrunk by games (k = 300, under 100
-games hidden). Positive means it does better than usual in this matchup. The strongest is tagged
-**BEST VS LANE**; hover any option for each opponent. Nothing is imported into the client: you
-set your runes and items yourself.
-
-## In game (Ctrl+X)
-Press **Ctrl+X** in game to show a compact build panel on the right edge of the game,
-above the minimap (press again to hide; it remembers your choice for the next game). It shows
-your core build with the items you already own ticked, the next item and how much more gold it
-needs, item options with their Δ vs your lane opponents, and the skill order at your level.
-Clicks pass through it to the game.
-
-It only reads the game's local data for your own champion, items, gold and level, plus every
-player's champion and position. It never uses enemy items or timers: everything it suggests was
-worked out from data available before the game (Riot's third-party policy). Needs **borderless**
-or **windowed** display mode; exclusive fullscreen draws over any other window.
-
-## Your champions (comfort)
-Scores include what you're good at:
-- **you:** your win rate on the champion in that role minus everyone's, shrunk hard (k = 20)
-  because personal samples are small. Comes from your ranked games, which the app copies from the
-  client's match history after every game (the client itself only shows ~20). Older games count
-  less: a game's weight halves every `half_life` days (default 90; 0 = no decay).
-- **mastery:** a small bonus for mastery points, capped at +1.0.
-
-Tune or turn it off in `config.toml` with `[comfort]` (`weight = 0` disables it), or set
-`comfort_only = true` to only see champions you've played.
-
-## Enemy lanes and flex picks
-The client doesn't say which lane each enemy plays, so lanes are guessed from each champion's play rates.
-Champions with a real second lane (10% or more of their games, e.g. Hwei mid/bot) get a gold dot. Click
-any enemy to pick their lane: the picker shows the play rate for each lane, and the other enemies are
-re-guessed around your choice. **Auto** goes back to the guess. Your choices reset each draft.
-
-## Build an .exe
-Every push to `main` builds it on GitHub (`.github/workflows/release.yml`: tests, then PyInstaller)
-and publishes it as the **latest** release:
-[LoLCompanion.zip](https://github.com/angelotc/lol-companion/releases/latest/download/LoLCompanion.zip).
-Unzip and run `LoLCompanion.exe`. To build locally:
+## Develop
 ```
-uv run --group build pyinstaller league_helper.spec --noconfirm
+uv sync
+uv run app.py                                  # live
+uv run app.py --record drafts/x.jsonl          # live + record
+uv run app.py --replay drafts/x.jsonl          # replay
+uv run app.py --simulate --role support --allies jinx --enemies nautilus
+uv run pytest
+uv run --group build pyinstaller league_helper.spec --noconfirm   # → dist/LoLCompanion/
 ```
-Output: `dist/LoLCompanion/`. When packaged, config/cache/logs live in `%LOCALAPPDATA%\league-analysis\`.
 
-## Layout
-- `app.py`: window, docking and hotkeys. `controller.py` turns client updates into panel views
-  and records drafts; `state.py` tracks where you are (lobby, queue, ban, pick, locked, in game).
-- `engine.py` + `scoring.py`: candidates and scores. `views.py`: what the panel is sent.
-- `data/`: lolalytics (with matchup builds read from the site's pages), Data Dragon, the shared
-  fetcher (rate limit, de-duplication) and cache, and `store.py`, a SQLite file in
-  `%LOCALAPPDATA%\league-analysis\store.sqlite` that records every draft for backtesting.
-- `panel/`: `index.html` + `panel.css`, `js/core.js` (helpers, view router), one file per view in
-  `views/`, and `js/demo.js` (open `index.html?demo` in a browser).
-- `scripts/render_panel.py`: headless screenshot of any view, for checking UI changes;
-  `scripts/simulate_views.py` renders every view from a simulated draft into `docs/views/`.
+Every push to `main` runs the tests, builds, and publishes version `0.1.<run>` (installer +
+update feed) plus the portable zip.
 
-## Notes
-- lolalytics has no official API; endpoints are undocumented (`lolalytics.py`) and may change. Responses are cached for 24h.
-- Reading the League Client API is read-only; nothing is injected into the client or game.
+| Path | |
+|---|---|
+| `app.py`, `tray.py`, `updater.py` | Window, hotkeys, tray icon, auto-updates |
+| `controller.py`, `state.py` | Client updates → panel views; draft stage |
+| `engine.py`, `scoring.py` | Candidates and scores |
+| `data/` | lolalytics, Data Dragon, fetcher/cache, `store.py` (SQLite of drafts and games) |
+| `panel/` | The panel UI (`index.html?demo` runs in a browser) |
+| `scripts/` | `simulate_views.py` (README screenshots), `render_panel.py`, `make_icon.py` |

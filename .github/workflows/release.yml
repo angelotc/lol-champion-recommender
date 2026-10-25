@@ -1,5 +1,10 @@
 # On every push to main: run the tests, build the .exe and publish it as the "latest" release.
-# Download: https://github.com/angelotc/lol-companion/releases/latest/download/LoLCompanion.zip
+# Also builds a Velopack installer + update feed, published as release v0.1.<run_number>.
+# Downloads (stable URLs, from the "latest" release):
+#   https://github.com/angelotc/lol-companion/releases/latest/download/LoLCompanion-win-Setup.exe  (installer, auto-updates)
+#   https://github.com/angelotc/lol-companion/releases/latest/download/LoLCompanion.zip           (portable, no auto-update)
+# The installed app updates itself from the v* releases (Velopack GithubSource ignores releases
+# without a releases.win.json asset, so "latest" is skipped).
 name: release
 
 on:
@@ -12,7 +17,7 @@ permissions:
 
 concurrency:
   group: release
-  cancel-in-progress: true
+  cancel-in-progress: false  # don't kill a run halfway through publishing
 
 jobs:
   build:
@@ -24,15 +29,39 @@ jobs:
         run: uv run --group dev pytest -q
       - name: Build
         run: uv run --group build pyinstaller league_helper.spec --noconfirm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Install vpk
+        run: dotnet tool install -g vpk --version 1.2.161  # keep in step with the velopack Python package
+      - name: Package (Velopack)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: 0.1.${{ github.run_number }}
+        run: |
+          # previous full release, used to build delta packages (no-op if none exists yet)
+          vpk download github --repoUrl "https://github.com/${{ github.repository }}" --token "$GH_TOKEN" || true
+          vpk pack --packId LoLCompanion --packVersion "$VERSION" --packTitle "LoL Companion" \
+            --packDir dist/LoLCompanion --mainExe LoLCompanion.exe --icon assets/icon.ico
       - name: Zip
         shell: pwsh
         run: Compress-Archive -Path dist/LoLCompanion -DestinationPath LoLCompanion.zip
-      - name: Publish
+      - name: Publish update feed (Velopack release)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: 0.1.${{ github.run_number }}
+        run: |
+          vpk upload github --repoUrl "https://github.com/${{ github.repository }}" --token "$GH_TOKEN" \
+            --publish --releaseName "LoL Companion $VERSION" --tag "v$VERSION" \
+            --targetCommitish "$GITHUB_SHA"
+      - name: Publish latest (portable zip + installer)
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest --cleanup-tag --yes || true
-          gh release create latest LoLCompanion.zip --target "$GITHUB_SHA" --latest \
+          gh release create latest LoLCompanion.zip Releases/LoLCompanion-win-Setup.exe --target "$GITHUB_SHA" --latest \
             --title "LoL Companion (latest build)" \
-            --notes "Built from ${GITHUB_SHA::7}: $(git log -1 --format=%s). Unzip and run LoLCompanion.exe."
+            --notes "Built from ${GITHUB_SHA::7}: $(git log -1 --format=%s). Install with LoLCompanion-win-Setup.exe (auto-updates), or unzip LoLCompanion.zip and run LoLCompanion.exe (portable)."

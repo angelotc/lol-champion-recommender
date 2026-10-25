@@ -2,7 +2,7 @@
 # Output: dist/LoLCompanion/LoLCompanion.exe (onedir: faster start, fewer AV false positives)
 a = Analysis(
     ["app.py"],
-    datas=[("panel", "panel"), ("config.toml", ".")],
+    datas=[("panel", "panel"), ("config.toml", "."), ("assets/icon.png", "assets")],
 )
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="LoLCompanion", console=False,
