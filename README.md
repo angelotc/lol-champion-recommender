@@ -10,6 +10,7 @@ the League client.
 Each score is the pick's baseline win rate plus weighted matchup deltas vs enemies and synergy deltas with allies;
 the lines under each pick show its two biggest contributions. Hover or click a pick to see every
 matchup and synergy behind its score: the delta, the games it's based on, and its weighted value.
+The formula is in [How picks are scored](#how-picks-are-scored).
 
 ## Views
 Every stage has its own view. These are simulated (`uv run scripts/simulate_views.py`), using the
@@ -64,11 +65,53 @@ Edit `config.toml` to set:
 The first draft in a role each day loads stats for that role's candidates, about 6 requests each,
 6 at a time, around 10-30 seconds; after that they come from cache.
 
+## How picks are scored
+Every candidate (tier-list champions for your role with at least `min_pick_rate` % pick rate) gets one
+score in win-rate percentage points; the panel ranks by it and shows each term.
+
+```
+score(c) = base + Σ vs + Σ with + you + mastery
+
+base    = shrink(wr(c) − avg_wr, games(c), k)                   × w_base
+vs      = shrink(Δ(c vs enemy in lane L), games, k)             × w_enemy[L]     each known enemy
+with    = shrink(Δ(c with ally in lane L), games, k)            × w_ally[L]      each ally (× 0.5 if only hovered)
+you     = shrink(your_wr(c) − wr(c), your_games(c), 20) × 0.5   × w_comfort
+mastery = min(0.15 × ln(1 + points / 1000), 1.0)                × w_comfort
+
+shrink(δ, n, k) = δ × n / (n + k)        (k = 500: a 500-game sample counts half)
+```
+
+- **Δ** is lolalytics' normalized matchup/synergy delta (`d2`): how much better or worse `c` does
+  with or against that champion than the two champions' own win rates predict. Enemy lanes are
+  inferred from play rates, or set by hand (flex picks).
+- **wr, games, avg_wr** are `c`'s win rate and games in your role and the role's average win rate,
+  at your rank tier over the last 14 days.
+- **shrink** pulls small samples toward 0, so a +6 matchup over 80 games counts less than +2 over
+  5,000.
+- **Default lane weights** (`[weights.<role>]` overrides):
+
+  | | your lane | your duo's lane (bot/sup) | jungle (or you're jungle) | other lanes |
+  |---|---|---|---|---|
+  | `w_enemy` | 1.0 | 1.0 | 0.5 | 0.3 |
+  | `w_ally` | – | 1.0 | 0.5 | 0.3 |
+
+  `w_base` = 1.0 and `w_comfort` = 1.0 (`[comfort]` sets `weight`, `k`, `history`, `mastery`,
+  `mastery_cap`).
+
+The same pieces drive the other views:
+- **Ban threat** = `pick_rate / 100 × (harm + strength × w_enemy[L])`, summed over the lanes it plays,
+  where harm is how much worse your top picks do against it (their weighted `vs` terms, averaged and
+  negated) and strength is its own shrunk win-rate delta.
+- **Build Δ** for a rune/item/spell vs your lane opponent =
+  `shrink((wr_with_option_vs − wr_vs) − (wr_with_option − wr), matchup games, 300)`, shown only with
+  100+ matchup games.
+- **Draft win estimate**: see below.
+
 ## Draft win estimate
 The top of the picks view shows your team's estimated win % vs theirs, updated with every pick,
 hover and lane change, plus the biggest reasons ("+0.9 strong pick: Jinx", "-0.8 synergy:
 Nautilus + Hwei"). It adds, in percentage points:
-- each champion's own strength in its lane (shrunk win rate delta, at half weight because summing
+- each champion's own strength in its lane (`base` above, at half weight because summing
   five deltas overstates),
 - every cross-team matchup delta, measured from both champions' sides and averaged, weighted 1.0
   for the same lane, 0.7 between the bot-lane duos and 0.35 across other lanes,
