@@ -133,6 +133,10 @@ any enemy to pick their lane: the picker shows the play rate for each lane, and 
 re-guessed around your choice. **Auto** goes back to the guess. Your choices reset each draft.
 
 ## Build an .exe
+Every push to `main` builds it on GitHub (`.github/workflows/release.yml`: tests, then PyInstaller)
+and publishes it as the **latest** release:
+[LoLCompanion.zip](https://github.com/angelotc/lol-companion/releases/latest/download/LoLCompanion.zip).
+Unzip and run `LoLCompanion.exe`. To build locally:
 ```
 uv run --group build pyinstaller league_helper.spec --noconfirm
 ```

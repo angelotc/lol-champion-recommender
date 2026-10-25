@@ -1,0 +1,38 @@
+# On every push to main: run the tests, build the .exe and publish it as the "latest" release.
+# Download: https://github.com/angelotc/lol-companion/releases/latest/download/LoLCompanion.zip
+name: release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Test
+        run: uv run --group dev pytest -q
+      - name: Build
+        run: uv run --group build pyinstaller league_helper.spec --noconfirm
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path dist/LoLCompanion -DestinationPath LoLCompanion.zip
+      - name: Publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest LoLCompanion.zip --target "$GITHUB_SHA" --latest \
+            --title "LoL Companion (latest build)" \
+            --notes "Built from ${GITHUB_SHA::7}: $(git log -1 --format=%s). Unzip and run LoLCompanion.exe."
