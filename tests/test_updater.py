@@ -86,3 +86,12 @@ def test_apply_noop_unless_ready():
     u.apply_and_restart()
     u.apply_on_exit()
     assert mgr.calls == []
+
+
+def test_exe_path_finds_the_velopack_stub_by_any_name(tmp_path, monkeypatch):
+    (tmp_path / "current").mkdir()
+    for name in ("Update.exe", "LoL Companion.exe", "current/LoLCompanion.exe"):
+        (tmp_path / name).write_bytes(b"")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "current" / "LoLCompanion.exe"))
+    assert updater.exe_path() == str(tmp_path / "LoL Companion.exe")

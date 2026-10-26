@@ -44,9 +44,11 @@ def exe_path() -> str:
     try:
         if getattr(sys, "frozen", False):
             root = exe.parent.parent
-            stub = root / exe.name
-            if exe.parent.name.lower() == "current" and (root / "Update.exe").exists() and stub.exists():
-                return str(stub)
+            if exe.parent.name.lower() == "current" and (root / "Update.exe").exists():
+                # the stub is named after packTitle ("LoL Companion.exe"), not the main exe
+                stubs = [p for p in root.glob("*.exe") if p.name.lower() != "update.exe"]
+                if len(stubs) == 1:
+                    return str(stubs[0])
     except Exception:
         log.exception("exe_path failed")
     return str(exe)
