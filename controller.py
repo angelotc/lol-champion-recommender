@@ -273,7 +273,7 @@ class Controller:
             self.start_sync(delay=5.0 if s.stage == Stage.POSTGAME else 0.0)
         if Event.DRAFT_STARTED in events:
             self.user_hidden = False  # new draft: bring the panel back
-            self.tab, self.preload = None, ""
+            self.tab, self.preload, self.last_odds = None, "", None
             if self.store:
                 role = self.rec.role_for(s.draft) if self.rec and s.draft else None
                 self.draft_id = self._record(lambda: self.store.start_draft(role, self.tier))
@@ -282,6 +282,14 @@ class Controller:
         if Event.LOCKED_IN in events:
             self.tab = None  # show the build first, whatever tab you had in the ban phase
         self.render()
+        if Event.DRAFT_CHANGED in events and self.draft_id is not None and self.last_odds:
+            # odds timeline: one row per pick/ban, so backtests can watch estimates evolve
+            o = self.last_odds
+            self._record(lambda: self.store.save_recs(self.draft_id, "odds", {
+                "odds": round(o.win, 2), "known": o.known, "pending": o.pending,
+                "terms": [{"kind": t.kind, "champions": list(t.champions), "value": round(t.value, 2)}
+                          for t in o.terms[:5]],
+            }))
         if Event.LOCKED_IN in events and self.last_eval:
             self.last_role = self.last_eval.role
         if Event.LOCKED_IN in events and self.draft_id is not None and self.last_eval:

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS snapshots (
 CREATE TABLE IF NOT EXISTS recommendations (
     draft_id INTEGER NOT NULL REFERENCES drafts(id),
     t REAL NOT NULL,
-    kind TEXT NOT NULL,      -- 'locked' (recs when you locked in) | 'final' (last recs shown)
+    kind TEXT NOT NULL,      -- 'locked' | 'final' | 'odds' (one per pick/ban: the timeline)
     payload TEXT NOT NULL    -- JSON: role, tier, lanes, recs with contributions
 );
 CREATE TABLE IF NOT EXISTS games (
