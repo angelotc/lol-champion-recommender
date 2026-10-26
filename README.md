@@ -43,7 +43,7 @@ on Start with Windows, and quits.
 - **In game** needs borderless or windowed mode. Clicks pass through it.
 
 ## Settings
-`config.toml` (tray → Open settings; installed copy lives in `%LOCALAPPDATA%\league-analysis\`):
+Tray → Settings (or the gear in the panel header). Saved changes apply immediately, except the lockfile path. They live in `config.toml` (installed copy in `%LOCALAPPDATA%\league-analysis\`), which also holds what the window doesn't cover:
 
 | Key | Default | |
 |---|---|---|

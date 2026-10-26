@@ -22,18 +22,20 @@ from pathlib import Path
 
 import webview
 
+import settings_ui
 import tracker
 import updater
 from config import load_config
 from controller import Controller
 from data.store import Store
 from lcu import DraftState, LcuClient, Slot, read_lockfile, watch_session
-from paths import DATA_DIR, RESOURCES
+from paths import DATA_DIR, RESOURCES, config_path
 from scoring import LANES
 from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Stage
 from tray import Tray
 
 TITLE = "LoL Companion"
+SETTINGS_TITLE = "LoL Companion — Settings"
 VISIBLE_STAGES = DRAFT_STAGES | PRE_DRAFT_STAGES  # never in game, loading or post-game
 MOD_CONTROL, MOD_SHIFT, MOD_NOREPEAT, WM_HOTKEY = 0x2, 0x4, 0x4000, 0x0312
 HOTKEYS = {1: "L"}  # Ctrl+Shift+L panel, from anywhere (fallback; Ctrl+X is polled, see toggle_keys)
@@ -68,16 +70,21 @@ class Api:
     def set_tab(self, tab: str) -> None:
         self._app.ctl.set_tab(tab)
 
+    def open_settings(self) -> None:
+        self._app.open_settings()
+
 
 class App:
     def __init__(self, args):
         self.args = args
+        self._settings_lock = threading.Lock()
         self.always_show = bool(args.replay or args.simulate)
         self.window: webview.Window | None = None
         live = not self.always_show
         self.ctl = Controller(load_config(args.config), self.push, Store() if live else None)
         self.updater = updater.Updater(on_change=lambda: self.tray.on_update())
-        self.tray = Tray(self.toggle_panel, self.quit, self.updater, self.restart)
+        self.settings_window: webview.Window | None = None
+        self.tray = Tray(self.toggle_panel, self.quit, self.updater, self.restart, self.open_settings)
 
     def toggle_panel(self) -> None:
         self.ctl.user_hidden = not self.ctl.user_hidden
@@ -90,6 +97,28 @@ class App:
     def restart(self) -> None:
         self.tray.stop()  # the new version adds its own icon
         self.updater.apply_and_restart()
+
+    def open_settings(self) -> None:
+        """The settings window: one at a time, brought to front if already open."""
+        with self._settings_lock:
+            win = self.settings_window
+            if win:
+                try:
+                    win.restore()
+                    win.show()
+                    win.on_top = True  # raise above other windows, then back to normal
+                    win.on_top = False
+                    return
+                except Exception:
+                    log.exception("raise settings")  # window is gone: make a new one
+            api = settings_ui.SettingsApi(Path(self.args.config) if self.args.config else config_path(), self.ctl.reload_config)
+            win = webview.create_window(
+                SETTINGS_TITLE, url=str(RESOURCES / "panel" / "settings.html"), js_api=api,
+                width=480, height=680, min_size=(420, 480), resizable=True, background_color="#010a13",
+            )
+            api.window = win
+            win.events.closed += lambda: setattr(self, "settings_window", None)
+            self.settings_window = win
 
     def wait_show_requests(self) -> None:
         """Another copy was started: show this copy's panel instead."""

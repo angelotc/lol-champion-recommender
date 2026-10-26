@@ -419,6 +419,15 @@ class Controller:
             self.session.set_enemy_lane(champion_id, lane, LANES)
             self.render()
 
+    def reload_config(self, cfg: Config) -> None:
+        """Settings saved: score with the new values from now on and redraw. (Tier, days and the
+        lockfile path are fixed at startup.)"""
+        with self.lock:
+            self.cfg = cfg
+            if self.rec:
+                self.rec.cfg = cfg
+            self.render()
+
     def fail(self, message: str) -> None:
         with self.lock:
             self.notice = (message, "error")

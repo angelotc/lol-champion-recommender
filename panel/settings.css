@@ -1,0 +1,45 @@
+:root{
+  --bg:#010a13; --bg2:#0a1428; --line:#1e2328; --line2:#3c3c41;
+  --gold:#c8aa6e; --gold2:#f0e6d2; --muted:#7b8793; --dim:#5b6570; --pos:#0ac8b9; --neg:#e84057;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;font-size:14px;line-height:1.3;
+  color:var(--gold2);background:linear-gradient(180deg,var(--bg2),var(--bg) 40%);display:flex;flex-direction:column}
+main{flex:1;min-height:0;overflow-y:auto;padding:14px 20px 8px}
+main::-webkit-scrollbar{width:6px}main::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+section,details{margin-bottom:18px}
+h2,summary{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-variant:small-caps;color:var(--gold);
+  font-weight:600;padding-bottom:5px;border-bottom:1px solid var(--line);margin-bottom:6px}
+summary{cursor:pointer;list-style:none;user-select:none}
+summary::before{content:"\25B8  "}details[open] summary::before{content:"\25BE  "}
+.f{display:grid;grid-template-columns:1fr auto;column-gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(30,35,40,.6)}
+.f label{color:var(--gold2);font-weight:500}
+.f .hint{grid-column:1;color:var(--muted);font-size:12px;margin-top:2px}
+.f .err{grid-column:1/-1;color:var(--neg);font-size:12px;margin-top:3px}
+.f .err:empty{display:none}
+.f.bad input[type=number],.f.bad input[type=text]{border-color:var(--neg)}
+.f.wide{grid-template-columns:1fr}.f.wide input{margin-top:5px;width:100%}
+.f .slide{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-top:6px}
+.f .slide.off{display:none}
+.slide input{flex:1;accent-color:var(--gold)}
+output{min-width:2.5em;text-align:right;color:var(--gold)}
+input[type=number],input[type=text]{background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:3px;
+  color:var(--gold2);font:inherit;padding:4px 8px;width:96px;text-align:right;user-select:text}
+input[type=text]{text-align:left;font-size:12px}
+input:focus{outline:none;border-color:var(--gold)}
+.f label{grid-row:1}.f input:not(.sw){grid-row:1/3;grid-column:2}
+.f .hint{grid-row:2}
+.sw{appearance:none;-webkit-appearance:none;grid-row:1/3;grid-column:2;width:38px;height:20px;border-radius:10px;
+  background:var(--line2);position:relative;cursor:pointer;transition:background .15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--gold2);transition:left .15s}
+.sw:checked{background:var(--gold)}.sw:checked::after{left:21px;background:var(--bg)}
+.sw:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+.link{display:inline-block;margin-top:10px;color:var(--muted);font-size:12px}
+.link:hover{color:var(--gold)}
+footer{flex:none;display:flex;align-items:center;gap:8px;padding:10px 20px;border-top:1px solid var(--line);background:rgba(1,10,19,.9)}
+#status{flex:1;font-size:12px;color:var(--pos)}#status.bad{color:var(--neg)}
+button{font:inherit;border-radius:3px;padding:5px 14px;cursor:pointer;border:1px solid var(--line2);background:none;color:var(--muted)}
+button:hover{color:var(--gold2);border-color:var(--gold)}
+button.primary{background:var(--gold);border-color:var(--gold);color:var(--bg);font-weight:600}
+button.primary:hover{background:var(--gold2);color:var(--bg)}

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LoL Companion &mdash; Settings</title>
+<link rel="stylesheet" href="settings.css">
+</head>
+<body>
+<main id="form">
+  <section>
+    <h2>General</h2>
+    <div class="f" data-f="top_n"><label for="top_n">Picks to show</label>
+      <input type="number" id="top_n" min="3" max="15" step="1">
+      <p class="hint">How many champions to recommend (3&ndash;15).</p><p class="err"></p></div>
+    <div class="f" data-f="min_pick_rate"><label for="min_pick_rate">Minimum pick rate %</label>
+      <input type="number" id="min_pick_rate" min="0" max="5" step="0.5">
+      <p class="hint">Lower it to include off-meta picks (0&ndash;5).</p><p class="err"></p></div>
+    <div class="f tog" data-f="show_ban_suggestions"><label for="show_ban_suggestions">Suggest bans</label>
+      <input type="checkbox" id="show_ban_suggestions" class="sw">
+      <p class="hint">In the ban phase, suggest champions to ban.</p><p class="err"></p></div>
+    <div class="f tog" data-f="comfort_only"><label for="comfort_only">Only champions I've played</label>
+      <input type="checkbox" id="comfort_only" class="sw">
+      <p class="hint">Hide champions you have no games or mastery on.</p><p class="err"></p></div>
+  </section>
+  <section>
+    <h2>Your champions</h2>
+    <div class="f tog" data-f="comfort_weight"><label for="use_comfort">Use my record and mastery</label>
+      <input type="checkbox" id="use_comfort" class="sw">
+      <p class="hint">Favor champions you win with and have mastery on.</p>
+      <div class="slide" id="weightRow"><input type="range" id="comfort_weight" min="0.1" max="2" step="0.1"><output id="weightOut"></output></div>
+      <p class="err"></p></div>
+    <div class="f" data-f="half_life"><label for="half_life">Older games count less after (days)</label>
+      <input type="number" id="half_life" min="0" max="365" step="1">
+      <p class="hint">A game this old counts half. 0 = never fade.</p><p class="err"></p></div>
+    <div class="f" data-f="min_games"><label for="min_games">Games before my record counts</label>
+      <input type="number" id="min_games" min="1" max="10" step="1">
+      <p class="hint">Ignore your record on a champion until you have this many games.</p><p class="err"></p></div>
+  </section>
+  <details id="adv">
+    <summary>Advanced</summary>
+    <div class="f" data-f="k"><label for="k">k (sample-size shrinkage)</label>
+      <input type="number" id="k" min="50" max="2000" step="10">
+      <p class="hint">Higher trusts matchups with few games less (50&ndash;2000).</p><p class="err"></p></div>
+    <div class="f" data-f="tentative_factor"><label for="tentative_factor">tentative_factor</label>
+      <input type="number" id="tentative_factor" min="0" max="1" step="0.1">
+      <p class="hint">How much allies who are only hovering count (0&ndash;1).</p><p class="err"></p></div>
+    <div class="f wide" data-f="lockfile"><label for="lockfile">Lockfile path</label>
+      <input type="text" id="lockfile" spellcheck="false">
+      <p class="hint">League's lockfile. Changing it needs a restart.</p><p class="err"></p></div>
+    <a href="#" id="openFile" class="link">Open config file</a>
+  </details>
+</main>
+<footer>
+  <span id="status"></span>
+  <button id="reset" class="ghost">Reset to defaults</button>
+  <button id="cancel" class="ghost">Close</button>
+  <button id="save" class="primary">Save</button>
+</footer>
+<script src="settings.js"></script>
+</body>
+</html>

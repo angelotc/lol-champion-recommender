@@ -79,6 +79,7 @@
     document.body.classList.toggle("overlay",m==="overlay");
     document.body.dataset.mode=m||"";
   };
+  $("gear").addEventListener("click",function(){api("open_settings")});
   $("hide").addEventListener("click",function(){api("hide")});
 
   window.LPH={$:$,el:el,lane:lane,icon:icon,fmt:fmt,cls:cls,clear:clear,short:short,cap:cap,api:api,register:register,
