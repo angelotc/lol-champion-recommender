@@ -39,7 +39,7 @@ on Start with Windows, and quits.
 - **Picks** start at the first locked pick. Hover a pick to see every term behind its score.
 - **Rank tier** (pill at the top): Master+, GM+ or Challenger. Higher tiers have fewer games.
 - **Enemy lanes** are guessed from play rates; flex picks get a gold dot. Click to override.
-- **Build:** each option shows its Δ vs your lane opponents; the best is tagged **BEST VS LANE**.
+- **Build:** each option shows its Δ vs your lane opponents, plus the enemy jungler at lower weight; the best is tagged **BEST VS LANE**.
 - **In game** needs borderless or windowed mode. Clicks pass through it.
 
 ## Settings

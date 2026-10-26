@@ -42,7 +42,7 @@ class Option:
 
     @property
     def matchup(self) -> float:
-        """Combined weighted delta across your lane opponents (0 when there's no matchup data)."""
+        """Combined weighted delta across your lane opponents and the enemy jungler (0 when there's no matchup data)."""
         return sum(v.weighted for v in self.vs)
 
 
