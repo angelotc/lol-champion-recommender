@@ -41,6 +41,7 @@ def _creds_from_process() -> LcuCreds:
         out = subprocess.run(
             ["powershell", "-NoProfile", "-Command", cmd],
             capture_output=True, text=True, timeout=15,
+            creationflags=subprocess.CREATE_NO_WINDOW,  # no console flash while the client is closed
         ).stdout
     except (OSError, subprocess.SubprocessError) as e:
         raise LcuError(f"client not running ({e})") from e
