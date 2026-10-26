@@ -6,6 +6,7 @@ import json
 import re
 import ssl
 import subprocess
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Awaitable, Callable
@@ -32,7 +33,15 @@ class LcuCreds:
     name: str = "LeagueClient"
 
 
+SCAN_RETRY = 180.0  # seconds a "no client found" scan is trusted, so closed-client reconnects
+# don't spawn PowerShell on every backoff retry; reset to None whenever a scan succeeds
+_scan_failed_at: float | None = None
+
+
 def _creds_from_process() -> LcuCreds:
+    global _scan_failed_at
+    if _scan_failed_at is not None and time.monotonic() - _scan_failed_at < SCAN_RETRY:
+        raise LcuError("client not running (recent scan found none)")
     cmd = (
         "Get-CimInstance Win32_Process -Filter \"Name='LeagueClientUx.exe'\" "
         "| Select-Object -ExpandProperty CommandLine"
@@ -48,7 +57,9 @@ def _creds_from_process() -> LcuCreds:
     port = re.search(r"--app-port=(\d+)", out)
     token = re.search(r"--remoting-auth-token=([\w-]+)", out)
     if not (port and token):
+        _scan_failed_at = time.monotonic()
         raise LcuError("client not running (no lockfile, no LeagueClientUx process)")
+    _scan_failed_at = None
     return LcuCreds(int(port[1]), token[1])
 
 
