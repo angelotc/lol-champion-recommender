@@ -65,7 +65,7 @@
   $("openFile").addEventListener("click",function(e){e.preventDefault();call("open_file")});
 
   function init(){
-    call("get").then(function(r){fill(r.values)}).catch(function(e){status(e.message,true)});
+    call("get").then(function(r){fill(r.values);$("version").textContent=r.version||""}).catch(function(e){status(e.message,true)});
   }
   if(window.pywebview&&window.pywebview.api)init();
   else window.addEventListener("pywebviewready",init);

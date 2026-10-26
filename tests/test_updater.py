@@ -95,3 +95,7 @@ def test_exe_path_finds_the_velopack_stub_by_any_name(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(tmp_path / "current" / "LoLCompanion.exe"))
     assert updater.exe_path() == str(tmp_path / "LoL Companion.exe")
+
+
+def test_current_version_from_source_is_dev():
+    assert updater.Updater().current_version() == "dev"

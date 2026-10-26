@@ -111,7 +111,8 @@ class App:
                     return
                 except Exception:
                     log.exception("raise settings")  # window is gone: make a new one
-            api = settings_ui.SettingsApi(Path(self.args.config) if self.args.config else config_path(), self.ctl.reload_config)
+            api = settings_ui.SettingsApi(Path(self.args.config) if self.args.config else config_path(),
+                                          self.ctl.reload_config, self.version_text)
             win = webview.create_window(
                 SETTINGS_TITLE, url=str(RESOURCES / "panel" / "settings.html"), js_api=api,
                 width=480, height=680, min_size=(420, 480), resizable=True, background_color="#010a13",
@@ -119,6 +120,14 @@ class App:
             api.window = win
             win.events.closed += lambda: setattr(self, "settings_window", None)
             self.settings_window = win
+
+    def version_text(self) -> str:
+        """For the settings window: "Version 0.1.4", plus a downloaded update if there is one."""
+        u = self.updater
+        text = f"Version {u.current_version()}"
+        if u.state == "ready" and u.version:
+            text += f" · {u.version} ready (restart to update)"
+        return text
 
     def wait_show_requests(self) -> None:
         """Another copy was started: show this copy's panel instead."""

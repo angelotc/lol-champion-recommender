@@ -71,6 +71,13 @@ class Updater:
             log.info("updates unsupported: %s", e)
             self._mgr = None
 
+    def current_version(self) -> str:
+        """The installed version, e.g. "0.1.4"; "dev" when not installed by Setup.exe."""
+        try:
+            return str(self._mgr.get_current_version()) if self._mgr else "dev"
+        except Exception:
+            return "dev"
+
     def _set(self, state: str, version: str | None = None) -> None:
         self.state = state
         if version is not None:

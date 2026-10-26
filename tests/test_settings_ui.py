@@ -81,3 +81,12 @@ def test_api_save_calls_back(cfg_path):
     assert api.save(api.get()["values"] | {"top_n": 12}) == {"ok": True, "errors": {}}
     assert got[0].top_n == 12
     assert api.save(api.get()["values"] | {"top_n": 99})["ok"] is False and len(got) == 1
+
+
+def test_get_includes_the_version(tmp_path):
+    import shutil
+    from pathlib import Path
+    from settings_ui import SettingsApi
+    cfg = tmp_path / "config.toml"
+    shutil.copy(Path(__file__).parent.parent / "config.toml", cfg)
+    assert SettingsApi(cfg, version=lambda: "Version 0.1.4").get()["version"] == "Version 0.1.4"

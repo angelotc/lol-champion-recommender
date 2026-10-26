@@ -125,12 +125,13 @@ def save(values: dict, path: Path | str) -> dict[str, str]:
 class SettingsApi:
     """Exposed to settings.html as window.pywebview.api."""
 
-    def __init__(self, path: Path | str, on_saved: Callable[[Config], None] | None = None):
-        self._path, self._on_saved = Path(path), on_saved
+    def __init__(self, path: Path | str, on_saved: Callable[[Config], None] | None = None,
+                 version: Callable[[], str] = lambda: "dev"):
+        self._path, self._on_saved, self._version = Path(path), on_saved, version
         self.window = None  # set by the app once the window exists
 
     def get(self) -> dict:
-        return {"values": read_values(self._path), "defaults": defaults()}
+        return {"values": read_values(self._path), "defaults": defaults(), "version": self._version()}
 
     def defaults(self) -> dict:
         return defaults()
