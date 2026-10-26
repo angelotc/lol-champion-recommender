@@ -42,13 +42,14 @@ def test_ingame_ticks_owned_items_and_next_cost():
     b = Build(44, "support", 51.0, 10000, {}, {}, {
         "core": [Option("3865_3047_3190", 51, 10, 1000)],
         "boots": [Option("3111", 52, 30, 3000)],
+        "item3": [Option("3190", 55, 8, 800)],
         "item4": [Option("3109", 60, 5, 500)],
     })
     g = parse(LIVE)  # holds 3869 (upgraded support item), 3047 (boots), 1320 gold
     out = views.ingame(views.header("support", "master_plus", 14), g, BuildEvaluation(44, "support", b, {}), Champs(), assets())
     assert [p["owned"] for p in out["core"]] == [True, True, False]
     assert out["next"]["id"] == 3190 and out["next"]["gold"] == 2200
-    assert [s["title"] for s in out["sections"]] == ["4th item"]  # boots hidden: you have boots
+    assert [s["title"] for s in out["sections"]] == ["3rd item", "4th item"]  # boots hidden: you have boots
 
 
 def test_ingame_panel_only_when_toggled():

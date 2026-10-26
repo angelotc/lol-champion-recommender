@@ -214,7 +214,7 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
     path = [item(i) for i in core.ids] if core else []
     nxt = next((p for p in path if not p["owned"]), None)
     sections = []
-    for key, title in (("boots", "Boots"), ("item4", "4th item"), ("item5", "5th item")):
+    for key, title in (("boots", "Boots"), ("item3", "3rd item"), ("item4", "4th item"), ("item5", "5th item")):
         opts = b.sections.get(key) or []
         if key == "boots" and any(o for o in opts[:1] if _owned(o.ids[0], owned, assets)):
             continue
