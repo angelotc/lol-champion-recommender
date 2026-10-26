@@ -19,10 +19,16 @@ user32.SetWindowLongW.argtypes = [w.HWND, ctypes.c_int, ctypes.c_long]
 user32.SetLayeredWindowAttributes.argtypes = [w.HWND, w.COLORREF, w.BYTE, w.DWORD]
 user32.WindowFromPoint.argtypes = [w.POINT]
 user32.WindowFromPoint.restype = w.HWND
+user32.GetClassNameW.argtypes = [w.HWND, w.LPWSTR, ctypes.c_int]
+user32.GetWindowTextW.argtypes = [w.HWND, w.LPWSTR, ctypes.c_int]
+WNDENUMPROC = ctypes.WINFUNCTYPE(w.BOOL, w.HWND, w.LPARAM)
+user32.EnumWindows.argtypes = [WNDENUMPROC, w.LPARAM]
 
 CLIENT_CLASS = "RCLIENT"
 CLIENT_TITLE = "League of Legends"
-GAME_CLASS = "RiotWindowClass"  # the in-game window, "League of Legends (TM) Client"
+GAME_CLASS = "RiotWindowClass"  # shared with other Riot games (Valorant, the launcher)
+GAME_TITLE = "League of Legends (TM) Client"  # match the title too, or Valorant passes as the game
+GAME_TITLE_PREFIX = "League of Legends"
 PANEL_BASE = (300, 1080)  # panel width designed for a 1080px-tall client
 MIN_WIDTH = 240
 HWND_TOPMOST = w.HWND(-1)
@@ -73,7 +79,7 @@ def find_client() -> int:
 
 
 def game_running() -> bool:
-    return bool(user32.FindWindowW(GAME_CLASS, None))
+    return bool(find_game())
 
 
 def find_window(title: str) -> int:
@@ -141,7 +147,26 @@ LWA_ALPHA = 0x2
 
 
 def find_game() -> int:
-    return user32.FindWindowW(GAME_CLASS, None) or 0
+    """The in-game window: class RiotWindowClass with a League title. The exact title is tried
+    first; failing that, any window of the class whose title starts with "League of Legends"
+    (so a renamed title still matches, but Valorant and the Riot Client never do)."""
+    if hwnd := user32.FindWindowW(GAME_CLASS, GAME_TITLE):
+        return hwnd
+    found = []
+
+    @WNDENUMPROC
+    def callback(hwnd: int, _) -> bool:
+        buf = ctypes.create_unicode_buffer(64)
+        user32.GetClassNameW(hwnd, buf, 64)
+        if buf.value == GAME_CLASS:
+            user32.GetWindowTextW(hwnd, buf, 64)
+            if buf.value.startswith(GAME_TITLE_PREFIX):
+                found.append(hwnd)
+                return False  # stop enumerating
+        return True
+
+    user32.EnumWindows(callback, 0)
+    return found[0] if found else 0
 
 
 def place_ingame(game: Rect) -> Placement:
