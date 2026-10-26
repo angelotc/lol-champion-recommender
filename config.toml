@@ -29,7 +29,8 @@ lockfile = 'C:\Riot Games\League of Legends\lockfile'
 # Your own record and mastery (see README). weight = 0 turns it off.
 # [comfort]
 # weight = 1.0
-# k = 20            # shrinkage for your own games
+# k = 40            # shrinkage for your own games
+# min_games = 3     # ignore your record on a champion until this many games
 # history = 0.5     # how much your win rate counts
 # mastery = 0.15    # bonus per log(1 + points / 1000), capped at mastery_cap
 # mastery_cap = 1.0

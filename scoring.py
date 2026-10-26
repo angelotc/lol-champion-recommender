@@ -65,7 +65,7 @@ def comfort_terms(s: ChampStats, c: Comfort | None, w: dict) -> list[Contributio
         return []
     out = []
     eff = c.games if c.eff_games is None else c.eff_games
-    if c.games and eff > 0:
+    if c.games and c.games >= w.get("min_games", 0) and eff > 0:
         wins = c.wins if c.eff_games is None else c.eff_wins or 0.0
         delta = 100 * wins / eff - s.wr
         out.append(Contribution("you", s.champion_id, s.lane, delta, c.games,

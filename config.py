@@ -11,8 +11,10 @@ DEFAULT_LOCKFILE = r"C:\Riot Games\League of Legends\lockfile"
 DUO = {"bottom": "support", "support": "bottom"}
 # your own record and mastery: weight (0 = ignore), k (shrink: personal samples are small),
 # history (how much your win rate counts), mastery (bonus per log-1000-points), mastery_cap,
-# half_life (days: a game this old counts half in your win rate; 0 = no decay)
-DEFAULT_COMFORT = {"weight": 1.0, "k": 20, "history": 0.5, "mastery": 0.15, "mastery_cap": 1.0, "half_life": 90}
+# half_life (days: a game this old counts half in your win rate; 0 = no decay),
+# min_games (ignore your record on a champion until you have this many games)
+DEFAULT_COMFORT = {"weight": 1.0, "k": 40, "history": 0.5, "mastery": 0.15, "mastery_cap": 1.0,
+                   "half_life": 90, "min_games": 3}
 
 
 def default_weights(role: str) -> dict:

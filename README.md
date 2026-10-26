@@ -50,7 +50,7 @@ on Start with Windows, and quits.
 | `min_pick_rate` | 1.0 | Min pick rate % to be a candidate. Lower for off-meta picks. |
 | `show_ban_suggestions` | false | Show bans during the ban phase. |
 | `comfort_only` | false | Only recommend champions you've played. |
-| `[comfort]` | | `weight` (0 = off), `k`, `history`, `half_life`, `mastery`, `mastery_cap` |
+| `[comfort]` | | `weight` (0 = off), `k`, `history`, `half_life`, `min_games`, `mastery`, `mastery_cap` |
 | `[weights.<role>]` | | Per-role lane weights. |
 | `[odds]` | | Draft win estimate weights. |
 
@@ -63,7 +63,7 @@ score(c) = base + Σ vs + Σ with + you + mastery
 base    = shrink(wr(c) − avg_wr, games(c), k)                   × w_base
 vs      = shrink(Δ(c vs enemy in lane L), games, k)             × w_enemy[L]   each known enemy
 with    = shrink(Δ(c with ally in lane L), games, k)            × w_ally[L]    each ally (× 0.5 if hovered)
-you     = shrink(your_wr(c) − wr(c), your_games(c), 20) × 0.5   × w_comfort
+you     = shrink(your_wr(c) − wr(c), your_games(c), 40) × 0.5   × w_comfort   (3+ games)
 mastery = min(0.15 × ln(1 + points / 1000), 1.0)                × w_comfort
 
 shrink(δ, n, k) = δ × n / (n + k)     k = 500: a 500-game sample counts half

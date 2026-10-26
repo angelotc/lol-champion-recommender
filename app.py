@@ -42,6 +42,9 @@ TOGGLE_KEY = "X"  # Ctrl+X while the client, the panel or the game is in front
 KEY_POLL = 1 / 30  # seconds; in-game key check rate
 UPDATE_EVERY = 6 * 3600  # seconds between update checks
 CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT = 0, 1, 2
+# one live copy at a time: a second launch signals SHOW_EVENT and exits
+INSTANCE_MUTEX, SHOW_EVENT = "Local\\LoLCompanion", "Local\\LoLCompanion.Show"
+ERROR_ALREADY_EXISTS, EVENT_MODIFY_STATE = 183, 0x0002
 HANDLER_ROUTINE = ctypes.WINFUNCTYPE(w.BOOL, w.DWORD)
 
 log = logging.getLogger("app")
@@ -87,6 +90,15 @@ class App:
     def restart(self) -> None:
         self.tray.stop()  # the new version adds its own icon
         self.updater.apply_and_restart()
+
+    def wait_show_requests(self) -> None:
+        """Another copy was started: show this copy's panel instead."""
+        k32 = ctypes.windll.kernel32
+        k32.CreateEventW.restype = w.HANDLE
+        event = k32.CreateEventW(None, False, False, SHOW_EVENT)  # auto-reset
+        while k32.WaitForSingleObject(event, 0xFFFFFFFF) == 0:
+            log.info("second copy started: showing panel")
+            self.ctl.user_hidden = False
 
     def check_updates(self) -> None:
         while True:
@@ -317,7 +329,29 @@ def main() -> None:
         filename=DATA_DIR / "app.log", level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    App(args).run()
+    live = not (args.replay or args.simulate)
+    if live and not claim_single_instance():
+        log.info("already running: showed the other copy's panel")
+        return
+    app = App(args)
+    if live:
+        threading.Thread(target=app.wait_show_requests, daemon=True).start()
+    app.run()
+
+
+def claim_single_instance() -> bool:
+    """True if this is the only live copy. Otherwise ask the running copy to show its panel."""
+    k32 = ctypes.windll.kernel32
+    k32.CreateMutexW.restype = k32.CreateEventW.restype = k32.OpenEventW.restype = w.HANDLE
+    global _instance_mutex  # held until the process exits
+    _instance_mutex = k32.CreateMutexW(None, False, INSTANCE_MUTEX)
+    if k32.GetLastError() != ERROR_ALREADY_EXISTS:
+        return True
+    event = k32.OpenEventW(EVENT_MODIFY_STATE, False, SHOW_EVENT)
+    if event:
+        k32.SetEvent(event)
+        k32.CloseHandle(event)
+    return False
 
 
 if __name__ == "__main__":

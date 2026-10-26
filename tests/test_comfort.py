@@ -109,3 +109,10 @@ def test_comfort_terms_use_effective_counts_but_report_raw_games():
     assert raw.delta == 0 and comfort_terms(s, Comfort(2, 1, eff_games=0, eff_wins=0), W) == []
     same = comfort_terms(s, Comfort(2, 1, eff_games=2.0, eff_wins=1.0), W)
     assert same == [raw]  # no decay matches old behavior
+
+
+def test_comfort_ignores_records_under_min_games():
+    s = ChampStats(1, "support", 51.0, 10000)
+    w = W | {"min_games": 3}
+    assert [c.label for c in comfort_terms(s, Comfort(1, 0), w)] == []  # one loss: no "you" term
+    assert [c.label for c in comfort_terms(s, Comfort(3, 0), w)] == ["you"]
