@@ -178,7 +178,7 @@ def draft_odds(
     Additive in percentage points: each side's champions' own strength (shrunk wr - avg, damped
     because summing five deltas overstates), every cross-team pair's matchup delta (taken from both
     champions' sides and averaged, weighted by how much the lanes interact), and synergy between
-    teammates. Uncalibrated: backtesting (--backtest) is what tunes these weights.
+    teammates. Uncalibrated: scripts/backtest.py is what tunes these weights.
     """
     w = DEFAULT_ODDS | (weights or {})
     terms: list[OddsTerm] = []
