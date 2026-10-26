@@ -216,8 +216,8 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
     sections = []
     for key, title in (("boots", "Boots"), ("item3", "3rd item"), ("item4", "4th item"), ("item5", "5th item")):
         opts = b.sections.get(key) or []
-        if key == "boots" and any(o for o in opts[:1] if _owned(o.ids[0], owned, assets)):
-            continue
+        if opts and all(_owned(i, owned, assets) for i in opts[0].ids):
+            continue  # the top option is already bought (_owned also matches another boot/support tier)
         if opts:
             sections.append({"title": title, "options": [opt(o) for o in opts[:3]]})
     order = (b.sections.get("skill_order") or [None])[0]
