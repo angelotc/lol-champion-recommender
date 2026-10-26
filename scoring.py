@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from itertools import permutations
-from math import log1p
+from math import exp, log1p
 
 LANES = ("top", "jungle", "middle", "bottom", "support")
 
@@ -155,7 +155,14 @@ class DraftOdds:
 
 
 DUO_LANES = {"bottom", "support"}
-DEFAULT_ODDS = {"strength": 0.5, "same_lane": 1.0, "duo": 0.7, "cross": 0.35, "synergy": 0.5, "clamp": 25.0}
+# cal_a/cal_b: logistic calibration of the term total, fit by scripts/backtest.py; None = the
+# uncalibrated clamped total. sigmoid(cal_a * total + cal_b) becomes the win estimate.
+DEFAULT_ODDS = {"strength": 0.5, "same_lane": 1.0, "duo": 0.7, "cross": 0.35, "synergy": 0.5,
+                "clamp": 25.0, "cal_a": None, "cal_b": None}
+
+
+def sigmoid(x: float) -> float:
+    return 1.0 / (1.0 + exp(-x))
 
 
 def _pair_weight(a: str, b: str, w: dict) -> float:
@@ -215,7 +222,10 @@ def draft_odds(
                 terms.append(OddsTerm("matchup", "us" if v >= 0 else "them", (a.champion_id, b.champion_id), (la, lb), v))
 
     total = sum(t.value for t in terms)
-    win = max(50 - w["clamp"], min(50 + w["clamp"], 50 + total))
+    if w.get("cal_a") is not None:  # calibrated: a probability, no clamp needed
+        win = 100 * sigmoid(w["cal_a"] * total + (w.get("cal_b") or 0.0))
+    else:
+        win = max(50 - w["clamp"], min(50 + w["clamp"], 50 + total))
     terms.sort(key=lambda t: abs(t.value), reverse=True)
     return DraftOdds(win, terms, len(ours) + len(theirs))
 

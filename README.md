@@ -82,7 +82,9 @@ your games are weighted 0.5^(age / half_life), half_life = 90 days
 - **Ban threat** = `pick_rate × (harm to your picks + strength × w_enemy)`, summed over lanes.
 - **Build Δ** = `shrink((wr_option_vs − wr_vs) − (wr_option − wr), games, 300)`, hidden under 100 games.
 - **Draft win estimate**: champion strength (half weight) + cross-team matchups (1.0 same lane, 0.7
-  bot duos, 0.35 other) + synergy (half weight), capped 25–75%. Not yet calibrated.
+  bot duos, 0.35 other) + synergy (half weight), capped 25–75%. Calibrate it on your own drafts with
+  `scripts/backtest.py`, which fits `cal_a`/`cal_b` for `[odds]` in the config (the estimate then
+  passes through `sigmoid(cal_a · total + cal_b)` instead of the cap).
 
 ## APIs
 | API | Used for |

@@ -55,9 +55,11 @@ def log_loss(ps: list[float], ys: list[float]) -> float:
     return -sum(y * math.log(p) + (1 - y) * math.log(1 - p) for p, y in zip(ps, ys)) / len(ps)
 
 
-def predict(total: float, clamp: float) -> float:
-    """The deployed predictor: clamped additive total, as a probability."""
-    return min(50 + clamp, max(50 - clamp, 50 + total)) / 100
+def predict(total: float, w: dict) -> float:
+    """The deployed predictor: the calibrated logit when cal_a/cal_b are set, else the clamped total."""
+    if w.get("cal_a") is not None:
+        return sigmoid(w["cal_a"] * total + (w.get("cal_b") or 0.0))
+    return min(50 + w["clamp"], max(50 - w["clamp"], 50 + total)) / 100
 
 
 @dataclass
@@ -114,8 +116,8 @@ def totals(samples: list[Sample], k: float, weights: dict) -> list[float]:
     return [sum(t.value for t in draft_odds(s.ours, s.theirs, k, weights).terms) for s in samples]
 
 
-def evaluate(samples: list[Sample], totals: list[float], clamp: float) -> dict:
-    ps = [predict(t, clamp) for t in totals]
+def evaluate(samples: list[Sample], totals: list[float], weights: dict) -> dict:
+    ps = [predict(t, weights) for t in totals]
     ys = [s.win for s in samples]
     right = sum((p >= 0.5) == (y >= 0.5) for p, y in zip(ps, ys))
     wins = [p for p, y in zip(ps, ys) if y >= 0.5]
@@ -147,7 +149,7 @@ def tune(samples: list[Sample], cfg: Config, passes: int = 3) -> dict:
     ys = [s.win for s in samples]
 
     def loss(weights: dict) -> float:
-        return log_loss([predict(t, weights["clamp"]) for t in totals(samples, cfg.k, weights)], ys)
+        return log_loss([predict(t, weights) for t in totals(samples, cfg.k, weights)], ys)
 
     weights = DEFAULT_ODDS | cfg.odds
     best = loss(weights)
@@ -176,7 +178,7 @@ def main() -> None:
 
     def report(weights: dict) -> None:
         w = DEFAULT_ODDS | weights
-        e = evaluate(samples, totals(samples, cfg.k, w), w["clamp"])
+        e = evaluate(samples, totals(samples, cfg.k, w), w)
         print(f"\n{e['n']} drafts ({skipped} skipped: no snapshot or unknown champion/role)")
         print(f"accuracy {e['accuracy']:.0%}  log loss {e['log_loss']:.3f} (coin-flip baseline {e['base_loss']:.3f})")
         print(f"mean estimate: wins {e['win_mean']:.1f}% vs losses {e['loss_mean']:.1f}%")
@@ -188,7 +190,10 @@ def main() -> None:
 
     report(cfg.odds)
     a, b = fit_logistic(totals(samples, cfg.k, cfg.odds), [s.win for s in samples])
-    print(f"\ncalibration fit: P(win) = sigmoid({a:.3f} * total {b:+.2f}); a < 1 means the model overstates")
+    print("\ncalibration fit on these drafts, for config.toml (makes the panel's % mean what it says):")
+    print("[odds]")
+    print(f"cal_a = {a:.4f}")
+    print(f"cal_b = {b:+.4f}")
     if args.tune:
         w = tune(samples, cfg)
         if len(samples) < 50:

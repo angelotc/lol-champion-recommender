@@ -3,6 +3,8 @@ import random
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
@@ -26,9 +28,16 @@ def test_fit_logistic_constant_x_finds_the_rate():
 
 
 def test_predict_clamps():
-    assert backtest.predict(100, 25) == 0.75
-    assert backtest.predict(-100, 25) == 0.25
-    assert backtest.predict(10, 25) == 0.6
+    w = {"clamp": 25.0}
+    assert backtest.predict(100, w) == 0.75
+    assert backtest.predict(-100, w) == 0.25
+    assert backtest.predict(10, w) == 0.6
+
+
+def test_predict_uses_calibration_when_set():
+    w = {"clamp": 25.0, "cal_a": 0.1, "cal_b": -0.2}
+    assert backtest.predict(10, w) == pytest.approx(backtest.sigmoid(0.8))
+    assert backtest.predict(0, w) == pytest.approx(backtest.sigmoid(-0.2))
 
 
 def test_log_loss_penalizes_confident_wrong_answers():

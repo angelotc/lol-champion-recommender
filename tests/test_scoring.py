@@ -195,3 +195,11 @@ def test_draft_odds_hovers_count_half_and_clamp():
     assert draft_odds({"top": (strong, True)}, {}, 500).win == pytest.approx(55.0, abs=0.01)
     assert draft_odds({"top": (strong, False)}, {}, 500, {"strength": 5.0}).win == 75.0
     assert draft_odds({}, {}, 500).win == 50.0
+
+
+def test_draft_odds_calibration_replaces_the_clamp():
+    from scoring import draft_odds, sigmoid
+    strong = ChampStats(1, "top", 70.0, 10**6, avg_wr=50.0)
+    w = {"cal_a": 0.1, "cal_b": -0.2}
+    assert draft_odds({"top": (strong, False)}, {}, 500, w).win == pytest.approx(100 * sigmoid(0.8), abs=0.05)
+    assert draft_odds({}, {}, 500, w).win == pytest.approx(100 * sigmoid(-0.2))  # empty draft ~ its own prior
