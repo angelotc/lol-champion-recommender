@@ -42,7 +42,7 @@ HOTKEYS = {1: "L"}  # Ctrl+Shift+L panel, from anywhere (fallback; Ctrl+X is pol
 VK_SHIFT, VK_CONTROL, VK_MENU = 0x10, 0x11, 0x12
 TOGGLE_KEY = "X"  # Ctrl+X while the client, the panel or the game is in front
 KEY_POLL = 1 / 30  # seconds; in-game key check rate
-UPDATE_EVERY = 6 * 3600  # seconds between update checks
+UPDATE_EVERY = 20 * 60  # seconds between update checks
 CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT = 0, 1, 2
 # one live copy at a time: a second launch signals SHOW_EVENT and exits
 INSTANCE_MUTEX, SHOW_EVENT = "Local\\LoLCompanion", "Local\\LoLCompanion.Show"
