@@ -71,6 +71,14 @@ class Store:
         with self.lock:
             return self.db.execute(sql, args)
 
+    def _all(self, sql: str, args=()) -> list:
+        with self.lock:
+            return self.db.execute(sql, args).fetchall()
+
+    def _one(self, sql: str, args=()):
+        with self.lock:
+            return self.db.execute(sql, args).fetchone()
+
     # -- drafts -----------------------------------------------------------
     def start_draft(self, role: str | None, tier: str) -> int:
         return self._exec("INSERT INTO drafts(started, role, tier) VALUES (?,?,?)", (time.time(), role, tier)).lastrowid
@@ -103,19 +111,19 @@ class Store:
                 self.db.row_factory = None
 
     def draft_snapshots(self, draft_id: int) -> list[tuple[float, dict]]:
-        rows = self._exec("SELECT t, session FROM snapshots WHERE draft_id=? ORDER BY t", (draft_id,)).fetchall()
+        rows = self._all("SELECT t, session FROM snapshots WHERE draft_id=? ORDER BY t", (draft_id,))
         return [(t, unpack(b)) for t, b in rows]
 
     def draft_recs(self, draft_id: int, kind: str) -> dict | None:
-        row = self._exec(
+        row = self._one(
             "SELECT payload FROM recommendations WHERE draft_id=? AND kind=? ORDER BY t DESC LIMIT 1",
             (draft_id, kind),
-        ).fetchone()
+        )
         return json.loads(row[0]) if row else None
 
     # -- games ------------------------------------------------------------
     def has_game(self, game_id: int) -> bool:
-        return self._exec("SELECT 1 FROM games WHERE game_id=?", (game_id,)).fetchone() is not None
+        return self._one("SELECT 1 FROM games WHERE game_id=?", (game_id,)) is not None
 
     def add_game(self, game_id: int, created: float, queue: int, champ: int, role: str,
                  win: bool, duration: int, detail: dict) -> None:
@@ -159,11 +167,11 @@ class Store:
             where += " AND queue=?"
             args.append(queue)
         if half_life_days <= 0:
-            rows = self._exec("SELECT champ, COUNT(*), SUM(win) FROM games" + where + " GROUP BY champ", args).fetchall()
+            rows = self._all("SELECT champ, COUNT(*), SUM(win) FROM games" + where + " GROUP BY champ", args)
             return {c: (n, w or 0, float(n), float(w or 0)) for c, n, w in rows}
         now = time.time() if now is None else now
         out: dict[int, list] = {}
-        for champ, win, created in self._exec("SELECT champ, win, created FROM games" + where, args).fetchall():
+        for champ, win, created in self._all("SELECT champ, win, created FROM games" + where, args):
             weight = 0.5 ** (max(0.0, now - (created or now)) / 86400 / half_life_days)
             r = out.setdefault(champ, [0, 0, 0.0, 0.0])
             r[0] += 1

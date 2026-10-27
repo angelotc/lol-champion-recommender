@@ -117,8 +117,14 @@ def save(values: dict, path: Path | str) -> dict[str, str]:
         elif v != defaults_[name]:  # no [comfort] yet: add it only once something differs
             doc[table] = tomlkit.table()
             doc[table][key] = v
-    path.write_text(tomlkit.dumps(doc), encoding="utf-8")
-    load_config(path)  # the file we wrote must still load
+    tmp = path.with_suffix(".toml.tmp")
+    tmp.write_text(tomlkit.dumps(doc), encoding="utf-8")
+    try:
+        load_config(tmp)  # the file we wrote must still load
+    except Exception:
+        tmp.unlink(missing_ok=True)
+        raise
+    os.replace(tmp, path)  # atomic: the original is only replaced by a good file
     return {}
 
 

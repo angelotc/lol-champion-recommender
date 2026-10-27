@@ -9,6 +9,7 @@ from typing import Any, Callable, Iterator
 
 import httpx
 
+RETRY_STATUS = {429, 500, 502, 503, 504}
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) league-analysis pick helper"}
 
 
@@ -34,6 +35,11 @@ class Fetcher:
         self.pool = ThreadPoolExecutor(workers, thread_name_prefix="fetch")
         self._inflight: dict[str, Future] = {}
         self._lock = threading.Lock()
+        self.failures = 0  # requests that failed for good; callers compare before/after a batch
+
+    def note_failure(self) -> None:
+        with self._lock:
+            self.failures += 1
 
     def once(self, key: str, fn: Callable[[], Any]) -> Any:
         """Run fn for this key, or wait for the call already running for it."""
@@ -55,9 +61,25 @@ class Fetcher:
             with self._lock:
                 self._inflight.pop(key, None)
 
-    def get(self, url: str, params: dict | None = None) -> httpx.Response:
-        self.limit.wait()
-        return self.http.get(url, params=params)
+    def get(self, url: str, params: dict | None = None, attempts: int = 3) -> httpx.Response:
+        """GET with retries on rate limits, server errors and dropped connections."""
+        for i in range(1, attempts + 1):
+            self.limit.wait()
+            try:
+                r = self.http.get(url, params=params)
+            except httpx.TransportError:
+                if i == attempts:
+                    raise
+                time.sleep(2.0 ** i)
+                continue
+            if r.status_code not in RETRY_STATUS or i == attempts:
+                return r
+            try:
+                wait = min(float(r.headers.get("Retry-After", "")), 10.0)
+            except ValueError:
+                wait = 2.0 ** i
+            time.sleep(wait)
+        raise AssertionError("unreachable")
 
     def map(self, fn: Callable, items) -> Iterator:
         """fn over items on the shared pool; yields results in order as they finish.

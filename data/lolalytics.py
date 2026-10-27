@@ -115,9 +115,14 @@ class Lolalytics:
                 r.raise_for_status()
                 data = r.json()
             except (httpx.HTTPError, ValueError):
+                self.fetch.note_failure()
                 return None
-            # e.g. {"status":404} for unknown slug or unsupported filter
-            return {} if not isinstance(data, dict) or "status" in data else data
+            if isinstance(data, dict) and "status" in data:
+                if data["status"] == 404:  # unknown slug or unsupported filter: genuinely empty
+                    return {}
+                self.fetch.note_failure()  # anything else is a server problem: don't cache it
+                return None
+            return data if isinstance(data, dict) else {}
 
         return self.fetch.once(key, lambda: self.cache.get(key, fetch, f"{q['ep']}_{q.get('c', '')}"))
 
@@ -149,6 +154,7 @@ class Lolalytics:
                 r = self.fetch.get(url, params)
                 r.raise_for_status()
             except httpx.HTTPError:
+                self.fetch.note_failure()
                 return None
             return _qwik_build(r.text) or {}
 

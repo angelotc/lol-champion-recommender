@@ -29,7 +29,7 @@ class Champions:
         try:
             return cls._fetch(cache_dir)
         except httpx.HTTPError:
-            cached = sorted(cache_dir.glob("ddragon_*.json"), key=lambda p: p.stat().st_mtime)
+            cached = sorted(cache_dir.glob("ddragon_[0-9]*.json"), key=lambda p: p.stat().st_mtime)
             if not cached:
                 raise
             ver = cached[-1].stem.removeprefix("ddragon_")

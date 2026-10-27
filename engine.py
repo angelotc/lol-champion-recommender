@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -42,6 +43,10 @@ class BanEvaluation:
     role: str
     picks: list[int]       # your likely picks the threats are measured against
     threats: list[Threat]
+
+
+POOL_RETRY_AFTER = 60.0  # seconds before reloading a pool that had failed requests
+POOL_RETRIES = 3
 
 
 class Recommender:
@@ -95,8 +100,10 @@ class Recommender:
                 self.pools[key] = self._load_pool(role, key[0], progress or self.progress)
         return self.pools[key]
 
-    def _load_pool(self, role: str, tier: str, progress: Callable[[str], None]) -> dict[int, ChampStats]:
+    def _load_pool(self, role: str, tier: str, progress: Callable[[str], None],
+                   attempt: int = 0) -> dict[int, ChampStats]:
         lola = self.lola if tier == self.tier else self.lola.at_tier(tier)
+        failures = lola.fetch.failures
         ids = self.candidates(role)
         pool: dict[int, ChampStats] = {}
         label = f"{role} stats ({tier}, {self.cfg.days} days)"
@@ -108,7 +115,20 @@ class Recommender:
                 log.warning("no lolalytics data for %s in %s at %s", self.champs.slug(cid), role, tier)
             else:
                 pool[s.champion_id] = s
+        if lola.fetch.failures > failures and attempt < POOL_RETRIES:
+            # some requests failed: reload in the background later (successes come from the cache)
+            t = threading.Timer(POOL_RETRY_AFTER * (attempt + 1), self._retry_pool, (role, tier, attempt + 1))
+            t.daemon = True
+            t.start()
         return pool
+
+    def _retry_pool(self, role: str, tier: str, attempt: int) -> None:
+        try:
+            log.info("reloading %s stats at %s (attempt %d)", role, tier, attempt)
+            fresh = self._load_pool(role, tier, lambda _: None, attempt)
+            self.pools[(tier, role)] = self.pools.get((tier, role), {}) | fresh
+        except Exception:
+            log.exception("pool retry")
 
     def candidates(self, role: str) -> list[int]:
         """Champions with at least min_pick_rate % pick rate in the role on lolalytics' tier list."""
@@ -156,7 +176,13 @@ class Recommender:
         key = (self.tier, cid, lane)
         if key not in self._stats:
             pooled = self.pools.get((self.tier, lane), {}).get(cid)
-            self._stats[key] = pooled or self.lola.champ_stats(self.champs.slug(cid), lane)
+            if pooled:
+                return self._stats.setdefault(key, pooled)
+            failures = self.lola.fetch.failures
+            s = self.lola.champ_stats(self.champs.slug(cid), lane)
+            if s is None and self.lola.fetch.failures > failures:
+                return None  # failed request: don't remember it, try again next time
+            self._stats[key] = s
         return self._stats[key]
 
     def cached_lane_stats(self, cid: int, lane: str) -> ChampStats | None | bool:

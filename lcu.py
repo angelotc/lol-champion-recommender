@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import re
 import ssl
 import subprocess
@@ -13,6 +14,8 @@ from typing import Awaitable, Callable
 
 import httpx
 import websockets
+
+log = logging.getLogger(__name__)
 
 DEFAULT_LOCKFILE = r"C:\Riot Games\League of Legends\lockfile"
 POSITIONS = {"utility": "support"}  # LCU name -> lane name
@@ -193,12 +196,17 @@ async def watch_session(
                         await emit_phase(str(body.get("data")))
                         continue
                     await emit(None if body.get("eventType") == "Delete" else body.get("data"))
-        except (OSError, LcuError, websockets.WebSocketException):
-            pass
+        except (OSError, LcuError, websockets.WebSocketException) as e:
+            log.debug("lcu connection: %s", e)
+        except Exception:  # bad data or a callback error: log it and reconnect, never stop watching
+            log.exception("lcu watch")
         if connected:
             connected = False
-            await emit_phase("None")
-            await emit(None)
+            try:
+                await emit_phase("None")
+                await emit(None)
+            except Exception:
+                log.exception("lcu watch")
         await asyncio.sleep(delay)
         delay = min(delay * 2, max_backoff)
 

@@ -22,10 +22,13 @@
     var w=Number(v.comfort_weight);
     $("use_comfort").checked=w>0;
     if(w>0)lastWeight=w;
+    else lastWeight=recalled()||lastWeight;
     $("comfort_weight").value=w>0?w:lastWeight;
     showWeight();
     clearErrors();
   }
+  function remember(w){try{localStorage.setItem("lastComfortWeight",w)}catch(e){}}
+  function recalled(){try{return Number(localStorage.getItem("lastComfortWeight"))||0}catch(e){return 0}}
   function clearErrors(){
     document.querySelectorAll(".f").forEach(function(f){f.classList.remove("bad");f.querySelector(".err").textContent=""});
   }
@@ -35,6 +38,7 @@
     BOOL.forEach(function(k){v[k]=$(k).checked});
     v.lockfile=$("lockfile").value;
     v.comfort_weight=$("use_comfort").checked?Number($("comfort_weight").value):0;
+    remember(Number($("comfort_weight").value));  /* kept even when disabled (sent as 0) */
     return v;
   }
   function showErrors(errs){
@@ -50,7 +54,7 @@
   }
 
   $("use_comfort").addEventListener("change",showWeight);
-  $("comfort_weight").addEventListener("input",function(){lastWeight=Number(this.value);showWeight()});
+  $("comfort_weight").addEventListener("input",function(){lastWeight=Number(this.value);remember(lastWeight);showWeight()});
   $("save").addEventListener("click",function(){
     status("");
     call("save",collect()).then(function(r){

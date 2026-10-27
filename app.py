@@ -95,8 +95,13 @@ class App:
         self.window.destroy()  # webview.start returns and run() exits
 
     def restart(self) -> None:
+        if self.updater.state != "ready":
+            return
         self.tray.stop()  # the new version adds its own icon
         self.updater.apply_and_restart()
+        if self.updater.state == "error":  # still running: the update failed, bring the tray back
+            self.tray = Tray(self.toggle_panel, self.quit, self.updater, self.restart, self.open_settings)
+            self.tray.start()
 
     def open_settings(self) -> None:
         """The settings window: one at a time, brought to front if already open."""
@@ -329,7 +334,8 @@ class App:
             easy_drag=False,  # position is owned by the tracker; pywebview's drag also crashes here
         )
         self._install_quit_handler()
-        webview.start(self.boot)
+        # persistent storage so the settings page can remember things (e.g. the comfort weight)
+        webview.start(self.boot, private_mode=False, storage_path=str(DATA_DIR / "webview"))
         os._exit(0)  # worker threads may be blocked in network/GetMessage calls
 
     def _install_quit_handler(self) -> None:
