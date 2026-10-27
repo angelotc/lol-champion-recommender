@@ -55,7 +55,10 @@ def picks(head: dict, ev: Evaluation, champs: Champions, enemy_lanes: dict[int, 
             "rates": {l: round(rates.get(l, 0)) for l in LANES},
         }
 
-    return head | {
+    split = champs.team_damage(d.enemies)
+    dmg = {"enemy_damage": {"ad": round(split[0] * 100), "ap": 100 - round(split[0] * 100)}} if split else {}
+
+    return head | dmg | {
         "view": "picks",
         "status": "active",
         "message": "",

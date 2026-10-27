@@ -19,6 +19,7 @@
       enemies:[{id:111,name:"Nautilus",icon:I("Nautilus"),lane:"support",rates:{top:1,jungle:0,middle:0,bottom:0,support:98}},
                {id:51,name:"Caitlyn",icon:I("Caitlyn"),lane:"bottom",rates:{top:0,jungle:0,middle:1,bottom:98,support:0}},
                {id:910,name:"Hwei",icon:I("Hwei"),lane:"middle",flex:true,rates:{top:3,jungle:0,middle:66,bottom:24,support:8}}],
+      enemy_damage:{ad:38,ap:62},
       bans:[{name:"Pyke",icon:I("Pyke")},{name:"Blitzcrank",icon:I("Blitzcrank")}],
       recs:[
         rec("Leona","Leona",5.57,1.99,[C("Nautilus","Nautilus","vs","support",4.8,431,2.4),C("Jinx","Jinx","with","bottom",2.2,310,1.1),C("Caitlyn","Caitlyn","vs","bottom",1.3,520,0.9),C("Lee Sin","LeeSin","with","jungle",0.6,140,0.2,true),C("Ahri","Ahri","vs","middle",-0.5,260,-0.2)]),

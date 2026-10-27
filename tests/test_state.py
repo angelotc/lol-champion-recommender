@@ -68,6 +68,7 @@ def test_ban_phase_detection():
 class StubChamps:
     def name(self, cid): return f"c{cid}"
     def icon_url(self, cid): return ""
+    def team_damage(self, cids): return None
 
 
 class StubRec:

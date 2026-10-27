@@ -21,6 +21,15 @@
       box.appendChild(ch);
     });
   }
+  function renderDamage(d){
+    var box=$("enemyDmg");clear(box);
+    box.classList.toggle("hidden",!d);
+    if(!d)return;
+    box.appendChild(el("div",null,"Enemy damage: "+d.ap+"% AP · "+d.ad+"% AD"));
+    var bar=el("div","bar"),ap=el("div","ap"),ad=el("div","ad");
+    ap.style.width=d.ap+"%";ad.style.width=d.ad+"%";
+    bar.appendChild(ap);bar.appendChild(ad);box.appendChild(bar);
+  }
   function renderEnemies(list){
     lastEnemies=list||[];
     if(pickId!=null&&!lastEnemies.some(function(c){return c.id===pickId}))pickId=null;
@@ -139,6 +148,7 @@
     renderOdds(s.odds);
     chipRow($("allies"),s.allies,"ally");
     renderEnemies(s.enemies);
+    renderDamage(s.enemy_damage);
     clear($("bans"));$("bansBox").classList.toggle("hidden",!(s.bans&&s.bans.length));
     (s.bans||[]).forEach(function(b){var i=icon(b.name,b.icon);i.title=b.name;$("bans").appendChild(i)});
     renderLocked(s.locked);

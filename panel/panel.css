@@ -39,6 +39,9 @@ body{
 .enemy .lane.manual{color:var(--gold2);font-weight:700}
 .enemy.flex .ico::after{content:"";position:absolute;top:2px;right:2px;width:.375rem;height:.375rem;border-radius:50%;
   background:var(--gold);box-shadow:0 0 0 1px #010a13}
+.dmg{margin-top:.3125rem;font-size:.625rem;color:var(--muted)}
+.dmg .bar{display:flex;height:.3125rem;margin-top:.1875rem;border-radius:3px;overflow:hidden;background:var(--line)}
+.dmg .ad{background:#e8833a}.dmg .ap{background:#7b7fe8}
 .lanepick{margin-top:.3125rem;padding:.3125rem;border:1px solid var(--line2);border-radius:4px;background:rgba(0,0,0,.3)}
 .lanepick .lp-t{font-size:.625rem;color:var(--muted);margin-bottom:.25rem}
 .lanepick .lp-t b{color:var(--gold2);font-weight:600}
