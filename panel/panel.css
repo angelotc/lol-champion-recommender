@@ -149,6 +149,7 @@ body.overlay .tiers{padding:.1875rem .5rem}
 .page .pl b{color:var(--gold2);font-weight:600}
 .page .pr{display:flex;align-items:flex-start;gap:.1875rem;margin-bottom:.1875rem}
 .page .pr .sep{width:1px;align-self:stretch;background:var(--line2);margin:0 .125rem}
+.page .pr .wsl{font-size:.5625rem;color:var(--muted);align-self:center}
 .rn{display:flex;flex-direction:column;align-items:center;gap:1px;width:1.75rem}
 .rn .ico{width:1.5rem;height:1.5rem;border-radius:50%;background:#0b1220}
 .rn.key .ico{width:1.875rem;height:1.875rem}

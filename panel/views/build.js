@@ -60,6 +60,11 @@
     r2.appendChild(el("div","sep"));
     (p.shards||[]).forEach(function(r){r2.appendChild(runeEl(r,"shard"))});
     box.appendChild(r2);
+    if(p.win_shards&&p.win_shards.length){
+      var r3=el("div","pr");r3.appendChild(el("span","wsl","Highest win rate shards"));r3.appendChild(el("div","sep"));
+      p.win_shards.forEach(function(r){r3.appendChild(runeEl(r,"shard"))});
+      box.appendChild(r3);
+    }
     return box;
   }
   function section(title,right){

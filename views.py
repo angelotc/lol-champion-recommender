@@ -140,7 +140,13 @@ def build(head: dict, bev: BuildEvaluation, champs: Champions, assets: Assets, t
     pages = []
     for kind, label in (("pick", "Most picked"), ("win", "Highest win rate")):
         pg = b.pages.get(kind)
-        if not pg or (kind == "win" and pages and pg.primary == b.pages["pick"].primary and pg.secondary == b.pages["pick"].secondary):
+        if not pg:
+            continue
+        if kind == "win" and pages and pg.primary == b.pages["pick"].primary and pg.secondary == b.pages["pick"].secondary:
+            # same runes: one page serves both; show the win-rate shards only when they differ
+            pages[0]["label"] = "Most picked · highest win rate"
+            if pg.shards != b.pages["pick"].shards:
+                pages[0]["win_shards"] = [rune(k) for k in builds.shard_keys(pg.shards)]
             continue
         styles = [assets.runes[r].style for r in pg.primary[:1] + pg.secondary[:1] if r in assets.runes]
         pages.append({
