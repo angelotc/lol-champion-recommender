@@ -223,15 +223,11 @@ class Recommender:
 
     def build(self, champion_id: int, role: str, enemies: dict[str, int]) -> BuildEvaluation:
         """Runes, spells, skills and items for your champion in the role, with matchup deltas vs
-        your lane opponents (your lane, plus the enemy duo for bot and support) and the enemy
-        jungler, each weighted by its enemy lane weight (the jungler counts less by default)."""
+        the enemies that matter to your role (Config.build_weights_for), each weighted."""
         slug = self.champs.slug(champion_id)
         base = builds.parse(self.lola.build_full(slug, role))
-        weights = self.cfg.weights_for(role)["enemy"]
-        opponents = {
-            lane: cid for lane, cid in enemies.items()
-            if weights.get(lane, 0) >= 1.0 or (lane == "jungle" and weights.get(lane, 0) > 0)
-        }
+        weights = self.cfg.build_weights_for(role)
+        opponents = {lane: cid for lane, cid in enemies.items() if lane in weights}
         if base:
             jobs = {
                 lane: self.lola.fetch.submit(self.lola.matchup_build, slug, role, self.champs.slug(cid), lane)

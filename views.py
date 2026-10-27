@@ -214,7 +214,10 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
 
     def opt(o: Option) -> dict:
         return {"parts": [item(i) for i in o.ids], "wr": round(o.wr, 1), "pr": round(o.pr, 1), "games": o.games,
-                "matchup": round(o.matchup, 2), "has_vs": bool(o.vs)}
+                "matchup": round(o.matchup, 2), "has_vs": bool(o.vs),
+                # each enemy's share of the total, shown inline (the in-game panel can't be hovered)
+                "vs": [champ(v.enemy) | {"lane": v.lane, "weighted": round(v.weighted, 2)}
+                       for v in sorted(o.vs, key=lambda v: -abs(v.weighted)) if abs(v.weighted) >= 0.05]}
 
     core = (b.sections.get("core") or [None])[0]
     path = [item(i) for i in core.ids] if core else []

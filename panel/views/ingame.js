@@ -44,6 +44,11 @@
         (o.parts||[]).forEach(function(p){r.appendChild(itemIcon(p))});
         r.appendChild(el("span","ig-wr",o.wr+"% · "+o.pr+"%"));
         var m=Number(o.matchup)||0;
+        if((o.vs||[]).length>1||(o.vs||[]).length===1&&Math.abs(m)>=SIG){
+          var parts=el("span","ig-vs");
+          o.vs.forEach(function(v){parts.appendChild(icon(v.name,v.icon));parts.appendChild(el("b",cls(v.weighted),fmt(v.weighted)))});
+          r.appendChild(parts);
+        }
         r.appendChild(el("span","ig-mu "+(o.has_vs&&Math.abs(m)>=SIG?cls(m):""),o.has_vs?(Math.abs(m)>=SIG?fmt(m):"±0"):""));
         b.appendChild(r);
       });

@@ -32,6 +32,18 @@ def default_weights(role: str) -> dict:
     return {"base": 1.0, "enemy": enemy, "ally": ally, "comfort": dict(DEFAULT_COMFORT)}
 
 
+# Which enemies an item or rune is measured against, per role, and how much each counts.
+# Bot lane faces the enemy duo; solo lanes face their lane opponent plus whoever ganks or roams
+# into them; the jungler fights everyone. (No data on items with a given ally exists.)
+DEFAULT_BUILD_WEIGHTS = {
+    "bottom": {"bottom": 1.0, "support": 1.0, "jungle": 0.5},
+    "support": {"support": 1.0, "bottom": 1.0, "jungle": 0.5},
+    "top": {"top": 1.0, "jungle": 0.5},
+    "middle": {"middle": 1.0, "jungle": 0.6, "support": 0.3},
+    "jungle": {"jungle": 1.0, "top": 0.3, "middle": 0.3, "bottom": 0.3, "support": 0.3},
+}
+
+
 @dataclass
 class Config:
     min_pick_rate: float = 1.0  # % of games in the role; who counts as a candidate
@@ -46,7 +58,8 @@ class Config:
     ban_vs_top: int = 5      # measure bans against this many of your top picks
     show_ban_suggestions: bool = False  # ban phase: suggest bans (else no recommendations)
     build_k: float = 300      # shrink for matchup rune/item deltas
-    build_min_games: int = 100  # hide matchup deltas with fewer games
+    build_min_games: int = 50  # hide matchup deltas with fewer games (build_k already discounts small samples)
+    build_weights: dict[str, dict] = field(default_factory=dict)  # per-role overrides of DEFAULT_BUILD_WEIGHTS
     lockfile: str = DEFAULT_LOCKFILE
     weights: dict[str, dict] = field(default_factory=dict)  # per-role overrides
     comfort: dict = field(default_factory=dict)  # overrides for DEFAULT_COMFORT, all roles
@@ -62,6 +75,12 @@ class Config:
             "ally": w["ally"] | override.get("ally", {}),
             "comfort": w["comfort"] | self.comfort | override.get("comfort", {}),
         }
+
+
+    def build_weights_for(self, role: str) -> dict[str, float]:
+        """Enemy lane -> weight for build matchup deltas; lanes at 0 are skipped."""
+        w = DEFAULT_BUILD_WEIGHTS.get(role, {role: 1.0}) | self.build_weights.get(role, {})
+        return {lane: float(v) for lane, v in w.items() if lane in LANES and v > 0}
 
 
 def load_config(path: Path | str | None = None) -> Config:

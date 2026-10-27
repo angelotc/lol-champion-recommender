@@ -195,6 +195,9 @@ body[data-mode=ingame] .hdr,body[data-mode=ingame] .tiers,body[data-mode=ingame]
 .ig-next b{color:var(--gold2);flex:none}
 .ig-opt{display:flex;align-items:center;gap:.25rem;margin-bottom:2px}
 .ig-wr{font-size:.5625rem;color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden}
+.ig-vs{display:flex;align-items:center;gap:2px;flex:none;font-size:.5rem}
+.ig-vs .ico{width:.75rem;height:.75rem;border-radius:2px;border:0;margin-left:2px}
+.ig-vs b{font-weight:600}
 .ig-mu{font-size:.625rem;font-weight:700;flex:none;min-width:1.75rem;text-align:right}
 .skillord span.now{outline:1px solid var(--gold2);color:var(--gold2)}
 .skillord span.done{opacity:.4}

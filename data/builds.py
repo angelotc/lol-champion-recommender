@@ -72,12 +72,15 @@ class Build:
     vs: list[tuple[int, str, int, float]] = field(default_factory=list)  # (enemy, lane, games, wr)
 
 
-def _options(rows, min_share: float = MIN_SHARE) -> list[Option]:
+def _options(rows, min_share: float = MIN_SHARE, relative: bool = False) -> list[Option]:
+    """relative: rescale pick rates to a share of this section's games. Later item slots come as a
+    share of all games, and few games reach a 4th or 5th item, so their options would all look rare."""
+    rows = [r for r in rows or [] if isinstance(r, list) and len(r) >= 4]
+    total = sum(float(r[2] or 0) for r in rows) if relative else 0.0
+    scale = 100.0 / total if total > 0 else 1.0
     out = []
-    for r in rows or []:
-        if not isinstance(r, list) or len(r) < 4:
-            continue
-        key, wr, pr, games = r[0], float(r[1] or 0), float(r[2] or 0), int(r[3] or 0)
+    for r in rows:
+        key, wr, pr, games = r[0], float(r[1] or 0), float(r[2] or 0) * scale, int(r[3] or 0)
         if pr >= min_share and games > 0 and str(key) not in HIDDEN:
             out.append(Option(str(key), wr, pr, games))
     return out
@@ -112,7 +115,7 @@ def parse(raw: dict) -> Build | None:
         "skill_order": _options(raw.get("skill15"), 0.5),
     }
     for i in range(1, 6):
-        sections[f"item{i}"] = _options(raw.get(f"item{i}"), 0.5 if i >= 4 else MIN_SHARE)
+        sections[f"item{i}"] = _options(raw.get(f"item{i}"), relative=True)
     return Build(int(h["cid"]), str(h.get("lane") or ""), float(h.get("wr") or 0), int(h["n"]), pages, runes, sections)
 
 

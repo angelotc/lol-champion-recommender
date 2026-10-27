@@ -111,7 +111,7 @@
       sec.options.forEach(function(o){b.appendChild(optRow(o,sec.key==="core"||sec.key==="start"))});
       body.appendChild(b);
     });
-    body.appendChild(el("div","bnote","Δ compares an option's win rate against your lane opponents (and, at lower weight, the enemy jungler) with its usual win rate, "+
+    body.appendChild(el("div","bnote","Δ compares an option's win rate against the enemies shown above (lane opponents full weight; junglers and roamers less) with its usual win rate, "+
       "shrunk by games (hover for each opponent). Later items show higher win rates because longer games are more often won: "+
       "compare options within a section."));
     body.scrollTop=keep;

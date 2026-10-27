@@ -26,6 +26,14 @@ lockfile = 'C:\Riot Games\League of Legends\lockfile'
 # enemy = { support = 1.0, bottom = 1.0, jungle = 0.5, middle = 0.4, top = 0.3 }
 # ally = { bottom = 1.0, jungle = 0.5, middle = 0.4, top = 0.3 }
 
+# Build deltas: which enemies items/runes are measured against, per role. Defaults:
+#   bottom/support: enemy bottom 1.0, support 1.0, jungle 0.5
+#   top: top 1.0, jungle 0.5      middle: middle 1.0, jungle 0.6, support 0.3
+#   jungle: jungle 1.0, every other lane 0.3
+# Override per role, e.g.:
+# [build_weights.middle]
+# support = 0.0
+
 # Your own record and mastery (see README). weight = 0 turns it off.
 # [comfort]
 # weight = 1.0

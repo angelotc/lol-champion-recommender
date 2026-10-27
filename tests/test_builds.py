@@ -62,3 +62,23 @@ def test_qwik_state_decoding():
     assert b["header"] == {"cid": 89, "n": 4915}
     assert b["runes"] == {} and b["spells"] == [["4_14", 53.6]]
     assert _qwik_build("<html></html>") is None
+
+
+def test_late_item_pick_rates_are_a_share_of_that_slot():
+    r = raw(50.0, 10000, [[3047, 52.0, 50, 5000, 12]])
+    # few games reach a 5th item: lolalytics gives pick rates as a share of all games
+    r["item5"] = [[3109, 53.0, 0.7, 264, 36], [3075, 55.0, 0.3, 120, 36], [2524, 60.0, 0.005, 2, 36]]
+    opts = builds.parse(r).sections["item5"]
+    assert [o.key for o in opts] == ["3109", "3075"]  # under 1% of 5th items: hidden
+    assert opts[0].pr == pytest.approx(0.7 / 1.005 * 100)
+
+
+def test_build_weights_per_role():
+    from config import Config
+    cfg = Config()
+    assert cfg.build_weights_for("support") == {"support": 1.0, "bottom": 1.0, "jungle": 0.5}
+    assert cfg.build_weights_for("top") == {"top": 1.0, "jungle": 0.5}
+    assert cfg.build_weights_for("middle") == {"middle": 1.0, "jungle": 0.6, "support": 0.3}
+    assert set(cfg.build_weights_for("jungle")) == {"jungle", "top", "middle", "bottom", "support"}
+    cfg = Config(build_weights={"middle": {"support": 0}})
+    assert cfg.build_weights_for("middle") == {"middle": 1.0, "jungle": 0.6}
