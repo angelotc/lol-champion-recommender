@@ -181,3 +181,36 @@ def test_recommendations_wait_for_first_pick_unless_its_your_turn():
     assert pushed[-1]["view"] == "picks"
     ctl.on_session(session())  # someone has locked in
     assert pushed[-1]["view"] == "picks"
+
+
+def test_picks_tab_after_lock_in_shows_recommendations_from_before_you_picked():
+    pushed = []
+    ctl = Controller(Config(), pushed.append)
+    ctl.rec = StubRec()
+    ctl.on_phase("ChampSelect")
+    ctl.on_session(session())
+    ctl.on_session(session(my_pick=412))
+    ctl.set_tab("picks")
+    assert pushed[-1]["view"] == "picks" and pushed[-1]["tab"] == "picks"
+    assert pushed[-1]["recs"][0]["name"] == "c412"  # your champion is still ranked in the frozen list
+    assert pushed[-1]["locked"]["name"] == "c412"
+
+
+def test_preload_when_idle_uses_your_usual_roles(tmp_path, monkeypatch):
+    store = Store(tmp_path / "s.sqlite")
+    for gid, role in enumerate(["support", "support", "bottom", "bottom", "top", ""]):
+        store.add_game(gid, 1000.0 + gid, 420, 412, role, True, 1800, {})
+    assert store.top_roles() == ["support", "bottom"]
+    ctl = Controller(Config(), lambda s: None, store)
+    loaded = []
+
+    class Rec(StubRec):
+        def has_pool(self, role, tier=None): return False
+        def pool(self, role, progress=None, tier=None): loaded.append(role)
+    ctl.rec = Rec()
+    ctl.lobby_roles = lambda: []  # not in a lobby
+    monkeypatch.setattr("controller.threading.Thread", lambda target, args, **kw: type("T", (), {"start": lambda self: target(*args)})())
+    ctl.on_phase("None")
+    assert loaded == ["support", "bottom"]
+    ctl.on_phase("Lobby")  # lobby roles empty, nothing new
+    assert loaded == ["support", "bottom"]

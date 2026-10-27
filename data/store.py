@@ -155,6 +155,13 @@ class Store:
         self.update_draft(row["id"], game_id=game_id, result="win" if win else "loss")
         return True
 
+    def top_roles(self, limit: int = 2, recent: int = 50) -> list[str]:
+        """Your most played roles over your last `recent` stored games, most played first."""
+        rows = self._exec(
+            "SELECT role, COUNT(*) n FROM (SELECT role FROM games WHERE role != '' ORDER BY created DESC LIMIT ?)"
+            " GROUP BY role ORDER BY n DESC LIMIT ?", (recent, limit)).fetchall()
+        return [r for r, _ in rows]
+
     def champ_record(self, role: str | None = None, queue: int | None = None, half_life_days: float = 0,
                      now: float | None = None) -> dict[int, tuple[int, int, float, float]]:
         """Champion id -> (games, wins, eff_games, eff_wins) from your stored games, optionally for one

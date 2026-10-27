@@ -267,7 +267,7 @@ class Controller:
         if not events:
             return
         s = self.session
-        if Event.PHASE in events and s.stage in PRE_DRAFT_STAGES:
+        if Event.PHASE in events and s.stage in PRE_DRAFT_STAGES | {Stage.IDLE, Stage.POSTGAME}:
             self.start_preload()
         if Event.PHASE in events and s.stage in (Stage.IDLE, Stage.LOBBY, Stage.POSTGAME):
             self.start_sync(delay=5.0 if s.stage == Stage.POSTGAME else 0.0)
@@ -340,7 +340,9 @@ class Controller:
         if not self.rec:
             return
         try:
-            roles = [r for r in self.lobby_roles() if (self.tier, r) not in self._preloaded]
+            # in a lobby: your position preferences; otherwise (idle, post-game) the roles you usually play
+            roles = self.lobby_roles() if self.session.stage in PRE_DRAFT_STAGES else self.usual_roles()
+            roles = [r for r in roles if (self.tier, r) not in self._preloaded]
         except Exception:
             log.exception("lobby positions")
             return
@@ -348,6 +350,17 @@ class Controller:
             return
         self._preloaded |= {(self.tier, r) for r in roles}
         threading.Thread(target=self._preload, args=(roles, self.tier), daemon=True, name="preload").start()
+
+    def usual_roles(self) -> list[str]:
+        roles = []
+        if self.store:
+            try:
+                roles = self.store.top_roles()
+            except Exception:
+                log.exception("usual roles")
+        if self.last_role and self.last_role not in roles:
+            roles.insert(0, self.last_role)
+        return [r for r in roles if r in LANES]
 
     def _preload(self, roles: list[str], tier: str) -> None:
         for role in roles:
