@@ -26,21 +26,24 @@ The panel appears on its own while the League client is in front and hides in ga
 The **tray icon** (bottom-right) shows/hides the panel, checks for updates, opens settings, turns
 on Start with Windows, and quits.
 
-| Queue | Bans | Picks |
-|---|---|---|
-| <img src="docs/views/1-queue.png" width="240"> | <img src="docs/views/2-bans.png" width="240"> | <img src="docs/views/3-picks.png" width="240"> |
-| Stats preload for your roles. | Ban suggestions (optional). | Draft win estimate, then ranked picks. |
+| Bans | Picks |
+|---|---|
+| <img src="docs/views/bans.png" width="280"> | <img src="docs/views/picks.png" width="280"> |
+| Ban suggestions (optional). | Draft win estimate, then ranked picks. |
 
-| Flex lanes | Build | In game |
-|---|---|---|
-| <img src="docs/views/4-flex.png" width="240"> | <img src="docs/views/5-build.png" width="240"> | <img src="docs/views/6-ingame.png" width="240"> |
-| Click an enemy to set their lane. | Runes, spells, items vs your lane. | Core build, gold to next item, skills. |
+| Build (after lock-in) | In game |
+|---|---|
+| <img src="docs/views/build.png" width="280"> | <img src="docs/views/ingame.png" width="280"> |
+| Runes, spells, skills and items vs the enemy. | Next item, gold, each enemy's Δ share. |
+
+- **Before champ select** stats preload in the background for your usual roles (your lobby roles once you queue).
 
 - **Picks** start at the first locked pick. Hover a pick to see every term behind its score.
 - **Rank tier** (pill at the top): Master+, GM+ or Challenger. Higher tiers have fewer games.
-- **Enemy lanes** are guessed from play rates; flex picks get a gold dot. Click to override.
-- **Build:** each option shows its Δ vs your lane opponents, plus the enemy jungler at lower weight; the best is tagged **BEST VS LANE**.
-- **In game** needs borderless or windowed mode. Clicks pass through it.
+- **Enemy lanes** are guessed from play rates; flex picks get a gold dot. Click an enemy to set their lane.
+- **Build:** each option shows its Δ: how much better it does against these enemies than usual, in win-rate points, discounted for small samples. Bot lane is measured vs the enemy duo, top/mid vs their laner, jungler (and mid vs the roaming support), jungle vs everyone. The best is tagged **BEST VS LANE**. Hover for each enemy's share.
+- **Picks tab after lock-in** shows the recommendations as they were when you locked in.
+- **In game** needs borderless or windowed mode. Clicks pass through it, so each enemy's share of an item's Δ is shown inline.
 
 ## Settings
 Tray → Settings (or the gear in the panel header). Saved changes apply immediately, except the lockfile path. They live in `config.toml` (installed copy in `%LOCALAPPDATA%\league-analysis\`), which also holds what the window doesn't cover:
@@ -52,6 +55,8 @@ Tray → Settings (or the gear in the panel header). Saved changes apply immedia
 | `comfort_only` | false | Only recommend champions you've played. |
 | `[comfort]` | | `weight` (0 = off), `k`, `history`, `half_life`, `min_games`, `mastery`, `mastery_cap` |
 | `[weights.<role>]` | | Per-role lane weights. |
+| `[build_weights.<role>]` | | Which enemies build Δs are measured against, and their weights. |
+| `build_min_games` | 50 | Ignore an enemy's Δ for an option below this many games. |
 | `[odds]` | | Draft win estimate weights. |
 
 ## How picks are scored

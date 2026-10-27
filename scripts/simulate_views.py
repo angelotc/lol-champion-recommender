@@ -1,6 +1,6 @@
 """Render every panel view from a simulated draft, through the real controller and lolalytics data.
 
-  uv run scripts/simulate_views.py              writes docs/views/*.png
+  uv run scripts/simulate_views.py              writes docs/views/{bans,picks,build,ingame}.png
   uv run scripts/simulate_views.py --out DIR
 
 No League client needed: the draft, lock-in and in-game state are simulated.
@@ -45,18 +45,13 @@ def main() -> None:
     ids = lambda *names: [ctl.rec.champs.id_from_slug(n) for n in names]
     shots: dict[str, tuple[dict, list[str], int, str]] = {}
 
-    # lobby / queue: preloading progress
-    ctl.preload = f"Preloading {ROLE} stats (master_plus, 14 days): 23/39..."
-    ctl.on_phase("Matchmaking")
-    shots["1-queue"] = (states[-1], [], 360, "")
-
     # ban phase
     allies = [Slot(c, lane, tent, False) for c, (_, lane, tent) in zip(ids(*(a[0] for a in ALLIES)), ALLIES)]
     me = Slot(0, ROLE, False, True)
     draft = DraftState(my_position=ROLE, allies=allies[:2] + [me], bans=set(ids(*BANS[:3])))
     ctl.session.phase, ctl.session.draft, ctl.session.banning = "ChampSelect", draft, True
     ctl.render()
-    shots["2-bans"] = (states[-1], [".threat"], 900, "")
+    shots["bans"] = (states[-1], [".threat"], 900, "")
 
     # picks, with the draft win estimate (load the 10 champions' stats first, as the app does in the background)
     draft = DraftState(my_position=ROLE, allies=allies + [me], enemies=ids(*ENEMIES), bans=set(ids(*BANS)),
@@ -68,10 +63,7 @@ def main() -> None:
     for lane, (cid, _) in list(ours.items()) + list(theirs.items()):
         ctl.rec.lane_stats(cid, lane)
     ctl.render()
-    shots["3-picks"] = (states[-1], [".rec"], 1000, "")
-
-    # flex lane picker: click the Hwei chip
-    shots["4-flex"] = (states[-1], [".enemy:nth-child(3)"], 560, "")
+    shots["picks"] = (states[-1], [".rec"], 1000, "")
 
     # locked in: build view with matchup deltas
     leona = ids(LOCK)[0]
@@ -79,7 +71,7 @@ def main() -> None:
     ctl.session.draft, ctl.session.frozen = locked, replace(locked, picked=locked.picked - {leona})
     assert ctl.session.stage == Stage.LOCKED
     ctl.render()
-    shots["5-build"] = (states[-1], [], 1600, "")
+    shots["build"] = (states[-1], [], 1600, "")
 
     # in game (Ctrl+X): Leona at level 9 with support item and boots
     ctl.session.draft = ctl.session.frozen = None
@@ -87,7 +79,7 @@ def main() -> None:
     enemies = dict(zip(["bottom", "support", "middle", "jungle"], ["Caitlyn", "Nautilus", "Hwei", "Viego"]))
     ctl.live = LiveGame("Leona", ROLE, 9, 1320, [3869, 3047, 2055], 1095, {}, enemies)
     ctl.render()
-    shots["6-ingame"] = (states[-1], [], 806, "ingame")
+    shots["ingame"] = (states[-1], [], 806, "ingame")
 
     for name, (state, clicks, height, mode) in shots.items():
         width = 333 if mode == "ingame" else 300
