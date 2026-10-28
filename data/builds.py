@@ -119,7 +119,7 @@ def parse(raw: dict) -> Build | None:
     return Build(int(h["cid"]), str(h.get("lane") or ""), float(h.get("wr") or 0), int(h["n"]), pages, runes, sections)
 
 
-def add_matchup(base: Build, vs: Build, enemy: int, lane: str, lane_weight: float, k: float, min_games: int = 50) -> None:
+def add_matchup(base: Build, vs: Build, enemy: int, lane: str, lane_weight: float, k: float, min_games: int = 20) -> None:
     """Annotate base's options (and runes) with their delta in games against `enemy`."""
     base.vs.append((enemy, lane, vs.games, vs.wr))
 

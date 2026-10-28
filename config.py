@@ -58,7 +58,7 @@ class Config:
     ban_vs_top: int = 5      # measure bans against this many of your top picks
     show_ban_suggestions: bool = False  # ban phase: suggest bans (else no recommendations)
     build_k: float = 300      # shrink for matchup rune/item deltas
-    build_min_games: int = 50  # hide matchup deltas with fewer games (build_k already discounts small samples)
+    build_min_games: int = 20  # hide matchup deltas with fewer games (build_k already discounts small samples)
     build_weights: dict[str, dict] = field(default_factory=dict)  # per-role overrides of DEFAULT_BUILD_WEIGHTS
     lockfile: str = DEFAULT_LOCKFILE
     weights: dict[str, dict] = field(default_factory=dict)  # per-role overrides
