@@ -54,6 +54,21 @@ def test_ingame_ticks_owned_items_and_next_cost():
     assert [s["title"] for s in out["sections"]] == ["3rd item", "4th item"]
 
 
+def test_ingame_core_follows_what_you_bought():
+    # most picked core goes Zeke's (3050); you bought Locket (3190) instead
+    b = Build(12, "support", 51.0, 10000, {}, {}, {
+        "core": [Option("3869_3111_3050", 56, 15, 5000), Option("3869_3111_3190", 55, 10, 3000)],
+        "item3": [Option("3050", 57, 15, 1500), Option("3190", 58, 14, 1400), Option("3109", 60, 25, 2500)],
+    })
+    g = parse(LIVE)
+    g.items = [3869, 3047, 3190]
+    out = views.ingame(views.header("support", "master_plus", 14), g, BuildEvaluation(12, "support", b, {}), Champs(), assets())
+    assert [p["id"] for p in out["core"]] == [3869, 3111, 3190]
+    assert out["next"] is None
+    third = next(s for s in out["sections"] if s["title"] == "3rd item")
+    assert [o["parts"][0]["id"] for o in third["options"]] == [3050, 3109]  # Locket dropped: you own it
+
+
 def test_ingame_panel_only_when_toggled():
     pushed = []
     ctl = Controller(Config(), pushed.append)
