@@ -222,7 +222,10 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
                 "vs": [champ(v.enemy) | {"lane": v.lane, "weighted": round(v.weighted, 2)}
                        for v in sorted(o.vs, key=lambda v: -abs(v.weighted)) if abs(v.weighted) >= 0.05]}
 
-    core = (b.sections.get("core") or [None])[0]
+    # the core path that best fits what you've bought (most items owned, then exact boots/support
+    # item, then most picked): with Locket bought, a Locket core replaces the more popular Zeke's one
+    cores = b.sections.get("core") or []
+    core = max(cores, key=lambda o: (sum(_owned(i, owned, assets) for i in o.ids), len(owned & set(o.ids))), default=None)
     path = [item(i) for i in core.ids] if core else []
     nxt = next((p for p in path if not p["owned"]), None)
     sections = []
@@ -230,6 +233,8 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
         opts = b.sections.get(key) or []
         if opts and all(_owned(i, owned, assets) for i in opts[0].ids):
             continue  # the top option is already bought (_owned also matches another boot/support tier)
+        # leave out options you already own (bought for another slot)
+        opts = [o for o in opts if not all(_owned(i, owned, assets) for i in o.ids)]
         if opts:
             sections.append({"title": title, "options": [opt(o) for o in opts[:3]]})
     order = (b.sections.get("skill_order") or [None])[0]
