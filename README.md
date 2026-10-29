@@ -43,7 +43,7 @@ on Start with Windows, and quits.
 - **Enemy lanes** are guessed from play rates; flex picks get a gold dot. Click an enemy to set their lane.
 - **Build:** each option shows its Δ: how much better it does against these enemies than usual, in win-rate points, discounted for small samples. Bot lane is measured vs the enemy duo, top/mid vs their laner, jungler (and mid vs the roaming support), jungle vs everyone. The best is tagged **BEST VS LANE**. Hover for each enemy's share.
 - **Picks tab after lock-in** shows the recommendations as they were when you locked in.
-- **In game** needs borderless or windowed mode. Clicks pass through it, so each enemy's share of an item's Δ is shown inline.
+- **In game** needs borderless or windowed mode. It never takes focus from the game: hover an item or row for details, Ctrl+X hides it.
 
 ## Settings
 Tray → Settings (or the gear in the panel header). Saved changes apply immediately. They live in `config.toml` (installed copy in `%LOCALAPPDATA%\league-analysis\`), which also holds what the window doesn't cover:

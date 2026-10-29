@@ -1,5 +1,6 @@
 /* In game (Ctrl+X): the build planned before the game, with what you already own.
-   Read-only and click-through: only your own items and gold are used, never the enemies'. */
+   Hover for details (the panel never takes focus from the game). Only your own items and gold are
+   used, never the enemies'. */
 (function(L){
   var $=L.$,el=L.el,lane=L.lane,icon=L.icon,fmt=L.fmt,cls=L.cls,clear=L.clear;
   var SIG=0.3;
@@ -39,9 +40,12 @@
       box.appendChild(c);
     }
     (s.sections||[]).forEach(function(sec){
-      var b=el("div","ig-sec");b.appendChild(el("div","ig-l",sec.title));
+      var b=el("div","ig-sec"+(sec.state?" "+sec.state:""));
+      b.appendChild(el("div","ig-l",sec.title+(sec.state==="next"?" · next":"")));
       sec.options.forEach(function(o){
         var r=el("div","ig-opt"+(o.yours?" yours":""));
+        r.title=(o.parts||[]).map(function(p){return p.name}).join(" + ")+" · "+o.wr+"% win · "+o.pr+"% picked"
+          +(o.games?" · "+k(o.games)+" games":"");
         (o.parts||[]).forEach(function(p){r.appendChild(itemIcon(p))});
         var wr=el("span","ig-wr");  // win rate over pick rate, so enemy deltas can't push the pick rate out
         wr.appendChild(el("span",null,o.wr+"%"));wr.appendChild(el("span","ig-pr",o.pr+"%"));
@@ -50,7 +54,10 @@
         var m=Number(o.matchup)||0;
         if((o.vs||[]).length>1||(o.vs||[]).length===1&&Math.abs(m)>=SIG){
           var parts=el("span","ig-vs");
-          o.vs.forEach(function(v){parts.appendChild(icon(v.name,v.icon));parts.appendChild(el("b",cls(v.weighted),fmt(v.weighted)))});
+          o.vs.forEach(function(v){
+            var vi=icon(v.name,v.icon);vi.title=v.name+" ("+v.lane+"): "+fmt(v.weighted)+" of this option's edge";
+            parts.appendChild(vi);parts.appendChild(el("b",cls(v.weighted),fmt(v.weighted)));
+          });
           r.appendChild(parts);
         }
         r.appendChild(el("span","ig-mu "+(o.has_vs&&Math.abs(m)>=SIG?cls(m):""),o.has_vs?(Math.abs(m)>=SIG?fmt(m):"±0"):""));

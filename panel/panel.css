@@ -207,6 +207,11 @@ body[data-mode=ingame] .hdr,body[data-mode=ingame] .tiers,body[data-mode=ingame]
 .ig-vs b{font-weight:600}
 .ig-mu{font-size:.75rem;font-weight:700;flex:none;min-width:2rem;text-align:right}
 .ig-opt.yours{background:rgba(255,255,255,.05);border-radius:3px}
+.ig-sec.done .ig-opt:not(.yours){opacity:.4}  /* a slot you've filled: your item stands out */
+.ig-sec.next{outline:1px solid rgba(200,170,110,.55);outline-offset:2px;border-radius:3px;background:rgba(200,170,110,.06)}
+.ig-sec.next .ig-l{color:var(--gold)}
+#tip{position:fixed;z-index:50;pointer-events:none;background:#0b1528;border:1px solid var(--line2);
+  border-radius:4px;padding:.1875rem .375rem;font-size:.6875rem;color:var(--gold2);white-space:normal}
 .ig-opt{position:relative}
 .ig-tag{position:absolute;left:1px;bottom:0;font-size:.4375rem;line-height:1.2;background:var(--pos);color:#010a13;border-radius:2px;padding:0 .1875rem;font-weight:700;letter-spacing:.04em}
 .skillord span.now{outline:1px solid var(--gold2);color:var(--gold2)}

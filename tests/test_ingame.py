@@ -81,6 +81,7 @@ def test_ingame_core_follows_what_you_bought():
     assert out["next"] is None
     third = next(s for s in out["sections"] if s["title"] == "3rd item")
     assert [o["parts"][0]["id"] for o in third["options"]] == [3050, 3109]  # Locket dropped: you own it
+    assert third["state"] == "next"  # core done: the 3rd slot is what you buy next
 
 
 def test_ingame_panel_only_when_toggled():
@@ -109,6 +110,34 @@ def test_ingame_slot_follows_items_bought_not_top_option():
     a.items[3050] = Item(3050, "i3050", "", 2200, [], {}, [], "")
     a.items[3070] = Item(3070, "i3070", "", 400, [], {}, [3004], "")
     out = views.ingame(views.header("support", "master_plus", 14), g, BuildEvaluation(44, "support", b, {}), Champs(), a)
-    assert [s["title"] for s in out["sections"]] == ["4th item", "5th item"]
-    fourth = out["sections"][0]
+    # the filled 3rd slot stays, with Knight's Vow marked as yours; the 4th is next
+    assert [(x["title"], x["state"]) for x in out["sections"]] == [("3rd item", "done"), ("4th item", "next"), ("5th item", "")]
+    third, fourth = out["sections"][0], out["sections"][1]
+    assert [(o["parts"][0]["id"], o["yours"]) for o in third["options"]] == [(3050, False), (3109, True)]
     assert [o["parts"][0]["id"] for o in fourth["options"]] == [3050]  # Knight's Vow dropped: you own it
+
+
+def test_ingame_no_item_slot_is_next_while_buying_the_core():
+    b = Build(44, "support", 51.0, 10000, {}, {}, {
+        "core": [Option("3869_3047_3190", 51, 10, 1000)],
+        "item3": [Option("3109", 58, 14, 1400)],
+    })
+    out = views.ingame(views.header("support", "master_plus", 14), parse(LIVE), BuildEvaluation(44, "support", b, {}), Champs(), assets())
+    assert out["next"]["id"] == 3190  # the core's next item is the highlight instead
+    assert [x["state"] for x in out["sections"] if x["title"] == "3rd item"] == [""]
+
+
+def test_ingame_your_item_shows_even_when_it_ranks_low():
+    b = Build(44, "support", 51.0, 10000, {}, {}, {
+        "core": [Option("3869_3047_3190", 51, 10, 1000)],
+        "item3": [Option(str(i), 55, 10, 1000) for i in (3050, 3107, 3222, 3109)],
+    })
+    g = parse(LIVE)
+    g.items = [3869, 3047, 3190, 3109]
+    a = assets()
+    for iid in (3050, 3107, 3222):
+        a.items[iid] = Item(iid, f"i{iid}", "", 2200, [], {}, [], "")
+    out = views.ingame(views.header("support", "master_plus", 14), g, BuildEvaluation(44, "support", b, {}), Champs(), a)
+    third = out["sections"][0]
+    assert [o["parts"][0]["id"] for o in third["options"]] == [3050, 3107, 3222, 3109]
+    assert [o["yours"] for o in third["options"]] == [False, False, False, True]

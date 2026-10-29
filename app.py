@@ -245,8 +245,8 @@ class App:
         placement, focused = self._target(panel) if panel else (None, False)
         visible = bool(placement and focused)
         ingame = bool(placement and placement.mode == "ingame")
-        if panel and through != ingame:  # in game, clicks go to the game, never to the panel
-            tracker.set_click_through(panel, ingame)
+        if panel and through != ingame:  # in game, the panel never takes focus from the game
+            tracker.set_no_activate(panel, ingame)
             through = ingame
         if visible and (not shown or placement != last):
             if not last or (placement.mode, placement.scale) != (last.mode, last.scale):

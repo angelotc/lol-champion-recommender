@@ -16,7 +16,6 @@ user32.MonitorFromWindow.restype = w.HMONITOR
 user32.GetMonitorInfoW.argtypes = [w.HMONITOR, ctypes.c_void_p]
 user32.GetWindowLongW.argtypes = [w.HWND, ctypes.c_int]
 user32.SetWindowLongW.argtypes = [w.HWND, ctypes.c_int, ctypes.c_long]
-user32.SetLayeredWindowAttributes.argtypes = [w.HWND, w.COLORREF, w.BYTE, w.DWORD]
 user32.WindowFromPoint.argtypes = [w.POINT]
 user32.WindowFromPoint.restype = w.HWND
 user32.GetClassNameW.argtypes = [w.HWND, w.LPWSTR, ctypes.c_int]
@@ -143,7 +142,6 @@ def move(hwnd: int, p: Placement) -> None:
 INGAME_BASE = 310  # in-game panel width at 1080p (before Config.ingame_scale): narrower, it sits over the game
 GWL_EXSTYLE = -20
 WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_NOACTIVATE = 0x00080000, 0x00000020, 0x08000000
-LWA_ALPHA = 0x2
 
 
 def find_game() -> int:
@@ -188,12 +186,11 @@ def dpi_scale(hwnd: int) -> float:
         return 1.0
 
 
-def set_click_through(hwnd: int, on: bool) -> None:
-    """Let clicks pass through the panel to the game (and never take focus from it)."""
+def set_no_activate(hwnd: int, on: bool) -> None:
+    """In game: the panel takes the mouse (hover for details; Ctrl+X hides it) but never takes
+    focus, so the keyboard stays with the game. Also clears the old click-through bits."""
     style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-    bits = WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE
-    new = (style | bits) if on else (style & ~bits)
+    new = style & ~(WS_EX_LAYERED | WS_EX_TRANSPARENT)
+    new = (new | WS_EX_NOACTIVATE) if on else (new & ~WS_EX_NOACTIVATE)
     if new != style:
         user32.SetWindowLongW(hwnd, GWL_EXSTYLE, new)
-        if on:  # a layered window draws nothing until given an alpha: keep it fully opaque
-            user32.SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA)

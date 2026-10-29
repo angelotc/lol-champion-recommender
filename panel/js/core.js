@@ -67,6 +67,7 @@
     if(s.role)parts.push(cap(s.role));if(s.days!=null&&s.days!=="")parts.push(s.days+"d");
     $("title").textContent=parts.length?parts.join(" · "):"LoL Companion";
     pending=null;  // any new state answers a tier click (accepted or not)
+    if(tip){tip.remove();tip=null}  // its element is about to be redrawn
     renderTiers(s);
     document.querySelectorAll("section.view").forEach(function(v){v.classList.toggle("hidden",v.dataset.view!==name)});
     renderTabs(s);
@@ -79,6 +80,21 @@
     document.body.classList.toggle("overlay",m==="overlay");
     document.body.dataset.mode=m||"";
   };
+  /* In game the panel never takes focus, and native tooltips may need it: draw our own from title */
+  var tip=null;
+  document.addEventListener("mouseover",function(e){
+    if(document.body.dataset.mode!=="ingame")return;
+    var t=e.target.closest&&e.target.closest("[title],[data-tip]");
+    if(t&&t.title){t.dataset.tip=t.title;t.removeAttribute("title")}
+    if(!t){if(tip){tip.remove();tip=null}return}
+    if(!tip){tip=el("div",null);tip.id="tip";document.body.appendChild(tip)}
+    var W=document.body.clientWidth,H=document.body.clientHeight;  // the panel, not the window
+    tip.style.maxWidth=(W-4)+"px";tip.textContent=t.dataset.tip;
+    var r=t.getBoundingClientRect(),h=tip.offsetHeight,wd=tip.offsetWidth;
+    tip.style.left=Math.max(2,Math.min(W-wd-2,r.left))+"px";
+    tip.style.top=(r.bottom+h+4<H?r.bottom+3:r.top-h-3)+"px";
+  });
+  document.documentElement.addEventListener("mouseleave",function(){if(tip){tip.remove();tip=null}});
   $("gear").addEventListener("click",function(){api("open_settings")});
   $("hide").addEventListener("click",function(){api("hide")});
 

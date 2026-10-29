@@ -197,16 +197,16 @@ def _owned(iid: int, items: set[int], assets: Assets) -> bool:
     return False
 
 
-def _extra_items(items: set[int], core: list[int], assets: Assets) -> int:
-    """How many finished items you hold outside the core path (not boots, support item, components,
+def _extra_items(items: set[int], core: list[int], assets: Assets) -> list[int]:
+    """The finished items you hold outside the core path (not boots, support item, components,
     trinkets or wards)."""
-    n = 0
-    for iid in items:
+    out = []
+    for iid in sorted(items):
         it = assets.items.get(iid)
         if iid in core or iid in SUPPORT_ITEMS or not it or it.into or it.gold < 1000 or "Boots" in it.tags:
             continue
-        n += 1
-    return n
+        out.append(iid)
+    return out
 
 
 def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Champions, assets: Assets) -> dict:
@@ -254,16 +254,33 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
             rows.append(row)
         sections.append({"title": "Boots", "options": rows})
     # each finished item you hold beyond the core fills the next slot (3rd, then 4th...), whatever it
-    # is: with Knight's Vow bought 3rd, the 4th slot still shows even though Knight's Vow tops it
-    done = _extra_items(owned, core.ids if core else [], assets)
+    # is: with Knight's Vow bought 3rd, the 4th slot is the next one even though Knight's Vow tops it.
+    # Filled slots stay (dimmed) with the item you put there marked as yours; once the core is done,
+    # the first open slot is highlighted as the one you're buying next.
+    extras = _extra_items(owned, core.ids if core else [], assets)
+    unplaced = list(extras)
+    next_marked = nxt is not None  # still buying the core: no item slot is next yet
     for n, (key, title) in enumerate((("item3", "3rd item"), ("item4", "4th item"), ("item5", "5th item"))):
-        if n < done:
-            continue
         opts = b.sections.get(key) or []
+        if n < len(extras):
+            mine = next((o for o in opts if any(i in unplaced for i in o.ids)), None)
+            rows = opts[:3] + ([mine] if mine and mine not in opts[:3] else [])
+            out_rows = []
+            for o in rows:
+                row = opt(o)
+                row["yours"] = o is mine
+                out_rows.append(row)
+            if mine:
+                unplaced = [i for i in unplaced if i not in mine.ids]
+            if out_rows:
+                sections.append({"title": title, "options": out_rows, "state": "done"})
+            continue
         # leave out options you already own (bought for another slot)
         opts = [o for o in opts if not all(_owned(i, owned, assets) for i in o.ids)]
         if opts:
-            sections.append({"title": title, "options": [opt(o) for o in opts[:3]]})
+            state = "" if next_marked else "next"
+            next_marked = True
+            sections.append({"title": title, "options": [opt(o) for o in opts[:3]], "state": state})
     order = (b.sections.get("skill_order") or [None])[0]
     page = b.pages.get("pick")
     return out | {
