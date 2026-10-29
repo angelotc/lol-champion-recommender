@@ -22,7 +22,8 @@
     h.appendChild(t);
     if(s.keystone){var ks=icon(s.keystone.name,s.keystone.icon,"igk");ks.title=s.keystone.name;h.appendChild(ks)}
     box.appendChild(h);
-    if(s.empty){box.appendChild(el("div","bnote",s.empty));return}
+    function keyHint(){var k=el("div","ig-key");k.innerHTML="<b>Ctrl+X</b> show/hide";box.appendChild(k)}
+    if(s.empty){box.appendChild(el("div","bnote",s.empty));keyHint();return}
 
     if(s.core&&s.core.length){
       var c=el("div","ig-sec");c.appendChild(el("div","ig-l","Core"));
@@ -40,9 +41,10 @@
     (s.sections||[]).forEach(function(sec){
       var b=el("div","ig-sec");b.appendChild(el("div","ig-l",sec.title));
       sec.options.forEach(function(o){
-        var r=el("div","ig-opt");
+        var r=el("div","ig-opt"+(o.yours?" yours":""));
         (o.parts||[]).forEach(function(p){r.appendChild(itemIcon(p))});
         r.appendChild(el("span","ig-wr",o.wr+"% · "+o.pr+"%"));
+        if(o.yours)r.appendChild(el("span","ig-tag","YOURS"));
         var m=Number(o.matchup)||0;
         if((o.vs||[]).length>1||(o.vs||[]).length===1&&Math.abs(m)>=SIG){
           var parts=el("span","ig-vs");
@@ -68,5 +70,6 @@
       v.appendChild(el("span",null,"· from before the game"));
       box.appendChild(v);
     }
+    keyHint();
   }});
 })(window.LPH);

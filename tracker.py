@@ -140,7 +140,7 @@ def move(hwnd: int, p: Placement) -> None:
     user32.SetWindowPos(hwnd, HWND_TOPMOST, p.x, p.y, p.width, p.height, SWP_NOACTIVATE)
 
 
-INGAME_BASE = 250  # in-game panel width at 1080p: narrower, it sits over the game
+INGAME_BASE = 310  # in-game panel width at 1080p (before Config.ingame_scale): narrower, it sits over the game
 GWL_EXSTYLE = -20
 WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_NOACTIVATE = 0x00080000, 0x00000020, 0x08000000
 LWA_ALPHA = 0x2
@@ -169,13 +169,23 @@ def find_game() -> int:
     return found[0] if found else 0
 
 
-def place_ingame(game: Rect) -> Placement:
-    """Right edge of the game, below the top bar and above the minimap (bottom right)."""
-    scale = game.height / PANEL_BASE[1]
+def place_ingame(game: Rect, size: float = 1.0) -> Placement:
+    """Right edge of the game, below the top bar and above the minimap (bottom right). Scales with
+    the game's height (1.33x at 1440p), times `size` (Config.ingame_scale)."""
+    scale = game.height / PANEL_BASE[1] * size
     width = max(200, round(INGAME_BASE * scale))
     top = game.top + round(game.height * 0.13)
     height = round(game.height * 0.56)  # the minimap starts around 72% down
-    return Placement("ingame", game.right - width - round(4 * scale), top, width, height, width / PANEL_BASE[0])
+    return Placement("ingame", game.right - width - round(4 * scale), top, width, height, scale)
+
+
+def dpi_scale(hwnd: int) -> float:
+    """The monitor's display scaling for this window (1.0 at 100%). WebView2 applies it on top of
+    our own scale, so the panel divides it back out."""
+    try:
+        return (user32.GetDpiForWindow(hwnd) or 96) / 96
+    except (AttributeError, OSError):
+        return 1.0
 
 
 def set_click_through(hwnd: int, on: bool) -> None:

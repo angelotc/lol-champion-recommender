@@ -72,7 +72,7 @@
     renderTabs(s);
     views[name].render(s);
     var n=new Date();
-    $("foot").textContent="Data: lolalytics · last update "+pad(n.getHours())+":"+pad(n.getMinutes())+":"+pad(n.getSeconds());
+    $("foot").innerHTML="Data: lolalytics · last update "+pad(n.getHours())+":"+pad(n.getMinutes())+":"+pad(n.getSeconds())+" · <b>Ctrl+X</b> show/hide";
   };
   window.setScale=function(v){v=parseFloat(v);if(isFinite(v)&&v>0)document.documentElement.style.setProperty("--s",v)};
   window.setMode=function(m){

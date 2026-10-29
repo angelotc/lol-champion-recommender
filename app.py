@@ -216,7 +216,7 @@ class App:
             game = tracker.find_game()  # in game: only after Ctrl+X, over the game's right edge
             if not (game and self.ctl.ingame_shown) or tracker.is_minimized(game):
                 return None, False
-            return tracker.place_ingame(tracker.window_rect(game)), tracker.foreground_root() in (game, panel)
+            return tracker.place_ingame(tracker.window_rect(game), self.ctl.cfg.ingame_scale), tracker.foreground_root() in (game, panel)
         if self.ctl.user_hidden or not (self.always_show or self.ctl.session.stage in VISIBLE_STAGES):
             return None, False
         if not self.always_show and tracker.game_running():
@@ -251,7 +251,7 @@ class App:
             through = ingame
         if visible and (not shown or placement != last):
             if not last or (placement.mode, placement.scale) != (last.mode, last.scale):
-                self.js(f"setScale({placement.scale:.3f});setMode({json.dumps(placement.mode)})")
+                self.js(f"setScale({placement.scale / tracker.dpi_scale(panel):.3f});setMode({json.dumps(placement.mode)})")
             if not shown:
                 log.info("panel shown (%s)", placement.mode)
                 self.window.show()  # via pywebview so WinForms/WebView2 know they're visible

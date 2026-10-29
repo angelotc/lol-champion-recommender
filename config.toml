@@ -16,6 +16,8 @@ tentative_factor = 0.5
 top_n = 8
 # Ban phase: no recommendations unless this is on (then: ban suggestions vs your likely picks)
 show_ban_suggestions = false
+# In-game panel size. It already grows with the game's resolution; raise this to make it bigger.
+ingame_scale = 1.0
 lockfile = 'C:\Riot Games\League of Legends\lockfile'
 
 # Weights default per role: your lane opponent counts most, bot/support also weigh the enemy

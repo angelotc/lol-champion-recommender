@@ -60,6 +60,7 @@ class Config:
     build_k: float = 300      # shrink for matchup rune/item deltas
     build_min_games: int = 20  # hide matchup deltas with fewer games (build_k already discounts small samples)
     build_weights: dict[str, dict] = field(default_factory=dict)  # per-role overrides of DEFAULT_BUILD_WEIGHTS
+    ingame_scale: float = 1.0  # in-game panel size on top of following the game's resolution
     lockfile: str = DEFAULT_LOCKFILE
     weights: dict[str, dict] = field(default_factory=dict)  # per-role overrides
     comfort: dict = field(default_factory=dict)  # overrides for DEFAULT_COMFORT, all roles

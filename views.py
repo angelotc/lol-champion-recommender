@@ -229,7 +229,20 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
     path = [item(i) for i in core.ids] if core else []
     nxt = next((p for p in path if not p["owned"]), None)
     sections = []
-    for key, title in (("boots", "Boots"), ("item3", "3rd item"), ("item4", "4th item"), ("item5", "5th item")):
+    # boots stay all game (like the build view in champ select), so you can see what your pair adds
+    # next to the others; only the exact pair you hold is marked as yours
+    boots = b.sections.get("boots") or []
+    if boots:
+        shown = boots[:3] + [o for o in boots[3:] if owned & set(o.ids)][:1]
+        rows = []
+        for o in shown:
+            row = opt(o)
+            for p in row["parts"]:
+                p["owned"] = p["id"] in owned
+            row["yours"] = all(p["owned"] for p in row["parts"])
+            rows.append(row)
+        sections.append({"title": "Boots", "options": rows})
+    for key, title in (("item3", "3rd item"), ("item4", "4th item"), ("item5", "5th item")):
         opts = b.sections.get(key) or []
         if opts and all(_owned(i, owned, assets) for i in opts[0].ids):
             continue  # the top option is already bought (_owned also matches another boot/support tier)

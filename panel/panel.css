@@ -177,33 +177,38 @@ body.overlay .tiers{padding:.1875rem .5rem}
 .skillord span.max{color:var(--gold2);background:#1d3355}
 .bnote{font-size:.5625rem;color:var(--dim);line-height:1.35}
 /* in-game mode: compact, see-through, nothing to click (the window passes clicks to the game) */
-body[data-mode=ingame]{--bgalpha:1;font-size:.75rem}
+body[data-mode=ingame]{--bgalpha:1;font-size:.8125rem}
+body[data-mode=ingame] .skillord span{width:1.125rem;height:1.125rem;font-size:.6875rem}
 body[data-mode=ingame] .hdr,body[data-mode=ingame] .tiers,body[data-mode=ingame] .tabs,body[data-mode=ingame] .foot{display:none!important}
 .igbody{gap:.375rem;padding:.4375rem .5rem}
 .ig-h{display:flex;align-items:center;gap:.375rem;flex:none}
 .ig-h .igc{width:2rem;height:2rem;border-radius:5px;border:1px solid var(--gold)}
 .ig-h .igk{width:1.5rem;height:1.5rem;margin-left:auto;background:#0b1220}
 .ig-t{min-width:0}
-.ig-n{font-weight:600;color:var(--gold2);font-size:.8125rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ig-s{font-size:.625rem;color:var(--muted)}
+.ig-n{font-weight:600;color:var(--gold2);font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ig-s{font-size:.6875rem;color:var(--muted)}
 .ig-sec{flex:none}
-.ig-l{font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600;margin-bottom:.125rem}
+.ig-l{font-size:.625rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600;margin-bottom:.125rem}
 .ig-core{display:flex;align-items:center;gap:2px}
 .ig-core .ico,.ig-opt .ico{width:1.625rem;height:1.625rem;border-radius:3px;border:1px solid var(--line2)}
 .ico.own{opacity:.35;filter:grayscale(.6)}
 .ico.own::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--pos);font-weight:700;font-size:.875rem;text-shadow:0 0 2px #000}
-.ig-core .arrow{color:var(--dim);font-size:.625rem}
-.ig-next{display:flex;justify-content:space-between;font-size:.625rem;color:var(--muted);margin-top:.1875rem;gap:.25rem}
+.ig-core .arrow{color:var(--dim);font-size:.6875rem}
+.ig-next{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-top:.1875rem;gap:.25rem}
 .ig-next span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ig-next b{color:var(--gold2);flex:none}
 .ig-opt{display:flex;align-items:center;gap:.25rem;margin-bottom:2px}
-.ig-wr{font-size:.5625rem;color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden}
-.ig-vs{display:flex;align-items:center;gap:2px;flex:none;font-size:.5rem}
-.ig-vs .ico{width:.75rem;height:.75rem;border-radius:2px;border:0;margin-left:2px}
+.ig-wr{font-size:.75rem;color:var(--muted);flex:1;min-width:0;white-space:nowrap;overflow:hidden}
+.ig-vs{display:flex;align-items:center;gap:2px;flex:none;font-size:.6875rem}
+.ig-vs .ico{width:.9375rem;height:.9375rem;border-radius:2px;border:0;margin-left:2px}
 .ig-vs b{font-weight:600}
-.ig-mu{font-size:.625rem;font-weight:700;flex:none;min-width:1.75rem;text-align:right}
+.ig-mu{font-size:.75rem;font-weight:700;flex:none;min-width:2rem;text-align:right}
+.ig-opt.yours{background:rgba(255,255,255,.05);border-radius:3px}
+.ig-tag{flex:none;font-size:.5rem;background:var(--pos);color:#010a13;border-radius:2px;padding:0 .1875rem;font-weight:700;letter-spacing:.04em}
 .skillord span.now{outline:1px solid var(--gold2);color:var(--gold2)}
 .skillord span.done{opacity:.4}
+.ig-key{margin-top:auto;padding-top:.25rem;text-align:center;font-size:.625rem;color:var(--dim)}
+.ig-key b,.foot b{color:var(--muted);font-weight:600}
 /* draft win estimate */
 .odds{padding:.375rem .625rem .3125rem;border-bottom:1px solid var(--line);flex:none}
 .odds .ol{display:flex;justify-content:space-between;align-items:baseline;gap:.375rem;font-size:.6875rem;font-weight:700;margin-bottom:.1875rem;white-space:nowrap}

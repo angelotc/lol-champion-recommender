@@ -50,8 +50,22 @@ def test_ingame_ticks_owned_items_and_next_cost():
     out = views.ingame(views.header("support", "master_plus", 14), g, BuildEvaluation(44, "support", b, {}), Champs(), assets())
     assert [p["owned"] for p in out["core"]] == [True, True, False]
     assert out["next"]["id"] == 3190 and out["next"]["gold"] == 2200
-    # boots and 5th hidden: you already own a pair / the support item line
-    assert [s["title"] for s in out["sections"]] == ["3rd item", "4th item"]
+    # boots stay with their matchup delta; 5th hidden (you hold the support item line)
+    assert [s["title"] for s in out["sections"]] == ["Boots", "3rd item", "4th item"]
+    boots = out["sections"][0]["options"]
+    assert [o["parts"][0]["id"] for o in boots] == [3111] and "matchup" in boots[0]
+    assert not boots[0]["yours"] and not boots[0]["parts"][0]["owned"]  # you hold 3047, not 3111
+
+
+def test_ingame_boots_mark_the_pair_you_hold():
+    b = Build(44, "support", 51.0, 10000, {}, {}, {
+        "boots": [Option(str(i), 50, 10, 1000) for i in (3111, 3190, 3109, 3865)] + [Option("3047", 49, 2, 100)],
+    })
+    out = views.ingame(views.header("support", "master_plus", 14), parse(LIVE), BuildEvaluation(44, "support", b, {}), Champs(), assets())
+    boots = out["sections"][0]["options"]
+    # top 3, plus the pair you hold even when it ranks lower
+    assert [o["parts"][0]["id"] for o in boots] == [3111, 3190, 3109, 3047]
+    assert [o["yours"] for o in boots] == [False, False, False, True]
 
 
 def test_ingame_core_follows_what_you_bought():
