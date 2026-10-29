@@ -43,7 +43,9 @@
       sec.options.forEach(function(o){
         var r=el("div","ig-opt"+(o.yours?" yours":""));
         (o.parts||[]).forEach(function(p){r.appendChild(itemIcon(p))});
-        r.appendChild(el("span","ig-wr",o.wr+"% · "+o.pr+"%"));
+        var wr=el("span","ig-wr");  // win rate over pick rate, so enemy deltas can't push the pick rate out
+        wr.appendChild(el("span",null,o.wr+"%"));wr.appendChild(el("span","ig-pr",o.pr+"%"));
+        r.appendChild(wr);
         if(o.yours)r.appendChild(el("span","ig-tag","YOURS"));
         var m=Number(o.matchup)||0;
         if((o.vs||[]).length>1||(o.vs||[]).length===1&&Math.abs(m)>=SIG){

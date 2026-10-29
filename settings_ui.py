@@ -120,7 +120,7 @@ def save(values: dict, path: Path | str) -> dict[str, str]:
     tmp = path.with_suffix(".toml.tmp")
     tmp.write_text(tomlkit.dumps(doc), encoding="utf-8")
     try:
-        load_config(tmp)  # the file we wrote must still load
+        load_config(tmp, strict=True)  # the file we wrote must still load
     except Exception:
         tmp.unlink(missing_ok=True)
         raise

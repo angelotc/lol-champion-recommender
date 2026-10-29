@@ -146,7 +146,8 @@ class Recommender:
         role = self.role_for(draft)
         if role is None:
             raise ValueError("no assigned role")
-        taken = draft.bans | draft.picked
+        hovers = {s.champion_id for s in draft.allies if s.champion_id and not s.is_me}
+        taken = draft.bans | draft.picked | hovers  # don't suggest what a teammate is hovering
         comfort = self.comfort(role)
         candidates = [
             s for cid, s in self.pool(role).items()
@@ -180,8 +181,8 @@ class Recommender:
                 return self._stats.setdefault(key, pooled)
             failures = self.lola.fetch.failures
             s = self.lola.champ_stats(self.champs.slug(cid), lane)
-            if s is None and self.lola.fetch.failures > failures:
-                return None  # failed request: don't remember it, try again next time
+            if self.lola.fetch.failures > failures:
+                return s  # a request failed (s may be partial or None): use it now, refetch next time
             self._stats[key] = s
         return self._stats[key]
 

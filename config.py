@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from paths import config_path
 from scoring import LANES
+
+log = logging.getLogger("config")
 
 DEFAULT_LOCKFILE = r"C:\Riot Games\League of Legends\lockfile"
 DUO = {"bottom": "support", "support": "bottom"}
@@ -84,7 +87,15 @@ class Config:
         return {lane: float(v) for lane, v in w.items() if lane in LANES and v > 0}
 
 
-def load_config(path: Path | str | None = None) -> Config:
-    with open(path or config_path(), "rb") as f:
-        raw = tomllib.load(f)
-    return Config(**{k: v for k, v in raw.items() if k in Config.__dataclass_fields__})
+def load_config(path: Path | str | None = None, strict: bool = False) -> Config:
+    """Settings from config.toml. A missing or broken file gives the defaults (logged), so the app
+    still starts; strict=True raises instead (for checking a file before it replaces the real one)."""
+    try:
+        with open(path or config_path(), "rb") as f:
+            raw = tomllib.load(f)
+        return Config(**{k: v for k, v in raw.items() if k in Config.__dataclass_fields__})
+    except (OSError, tomllib.TOMLDecodeError, TypeError):
+        if strict:
+            raise
+        log.exception("config.toml unreadable, using defaults")
+        return Config()

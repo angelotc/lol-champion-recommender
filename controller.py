@@ -25,6 +25,7 @@ from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Event, Session, Stage
 SETTINGS = DATA_DIR / "settings.json"
 SYNC_EVERY = 20.0  # seconds; history/mastery sync is cheap but not free
 LIVE_POLL = 2.0  # seconds between game data reads while the in-game panel is shown
+STATS_RETRY = 30.0  # seconds before refetching draft-odds stats that failed to load
 STAGE_TABS = {Stage.BAN: ["bans", "picks"], Stage.LOCKED: ["build", "picks"]}  # first is the default
 log = logging.getLogger("controller")
 
@@ -59,6 +60,7 @@ class Controller:
         self.last_eval: Evaluation | None = None
         self.last_odds: DraftOdds | None = None
         self._stats_pending: set[tuple[int, str]] = set()
+        self._stats_retry_at: dict[tuple[int, str], float] = {}  # failed loads: don't refetch before this time
         self._build_cache: tuple[tuple, BuildEvaluation] | None = None
         self.tab: str | None = None        # "bans" | "picks" chosen by you during the ban phase
         self.lcu: Callable[[], LcuClient] | None = None  # client factory, set by the live source
@@ -187,7 +189,8 @@ class Controller:
         return odds
 
     def _load_stats(self, need: list[tuple[int, str]]) -> None:
-        need = [n for n in need if n not in self._stats_pending]
+        now = time.monotonic()
+        need = [n for n in need if n not in self._stats_pending and self._stats_retry_at.get(n, 0) <= now]
         if not need:
             return
         self._stats_pending |= set(need)
@@ -198,6 +201,14 @@ class Controller:
             except Exception:
                 log.exception("draft odds stats")
             finally:
+                # still not cached = the fetch failed: wait before trying again, or the render
+                # below would start the same fetch straight away, over and over
+                retry_at = time.monotonic() + STATS_RETRY
+                for n in need:
+                    if self.rec.cached_lane_stats(*n) is False:
+                        self._stats_retry_at[n] = retry_at
+                    else:
+                        self._stats_retry_at.pop(n, None)
                 self._stats_pending -= set(need)
             if self.lock.acquire(blocking=False):  # never wait: a render may be in progress
                 try:
@@ -428,12 +439,11 @@ class Controller:
                 self.render()
 
     def set_tier(self, tier: str) -> None:
-        if tier not in views.TIERS or not self.rec:
-            return
         with self.lock:
-            self.rec.tier = tier
-            save_settings(tier=tier)
-            self.render()
+            if tier in views.TIERS and self.rec:
+                self.rec.tier = tier
+                save_settings(tier=tier)
+            self.render()  # always answer: the panel waits for a state to re-enable the tier buttons
 
     def set_enemy_lane(self, champion_id: int, lane: str) -> None:
         with self.lock:
@@ -441,8 +451,8 @@ class Controller:
             self.render()
 
     def reload_config(self, cfg: Config) -> None:
-        """Settings saved: score with the new values from now on and redraw. (Tier, days and the
-        lockfile path are fixed at startup.)"""
+        """Settings saved: score with the new values from now on and redraw. (Days are fixed at
+        startup; a new lockfile path is used on the next client connection.)"""
         with self.lock:
             self.cfg = cfg
             if self.rec:

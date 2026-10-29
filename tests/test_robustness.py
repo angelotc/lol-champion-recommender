@@ -83,7 +83,7 @@ def test_lolalytics_server_errors_are_not_cached(tmp_path, monkeypatch):
 
 
 def test_watcher_survives_callback_errors(monkeypatch):
-    """An error handling one event must not stop the watcher; it reconnects."""
+    """An error handling one event must not stop the watcher."""
     connects = []
 
     class FakeWs:

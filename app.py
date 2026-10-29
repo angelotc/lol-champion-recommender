@@ -160,7 +160,6 @@ class App:
     def run_live(self) -> None:
         ctl = self.ctl
         pickable: set[int] = set()
-        lockfile = ctl.cfg.lockfile
         record: Path | None = self.args.record
         if record:
             record.parent.mkdir(parents=True, exist_ok=True)
@@ -174,21 +173,21 @@ class App:
                 pickable = set()
             elif not pickable:
                 try:
-                    client = LcuClient(read_lockfile(lockfile))
+                    client = LcuClient(read_lockfile(ctl.cfg.lockfile))
                     pickable = client.get_pickable_ids()
                     client.close()
                 except Exception:
                     pass
             ctl.on_session(session, pickable)
 
-        ctl.lcu = lambda: LcuClient(read_lockfile(lockfile))
+        ctl.lcu = lambda: LcuClient(read_lockfile(ctl.cfg.lockfile))
 
         def on_phase(phase: str) -> None:
             ctl.idle_message = "Waiting for champ select..."  # connected (the panel is hidden when idle)
             ctl.on_phase(phase)
 
         ctl.render()
-        asyncio.run(watch_session(lambda: read_lockfile(lockfile), on_session, on_phase=on_phase))
+        asyncio.run(watch_session(lambda: read_lockfile(ctl.cfg.lockfile), on_session, on_phase=on_phase))
 
     def run_replay(self, path: Path) -> None:
         entries = [json.loads(l) for l in path.read_text(encoding="utf-8-sig").splitlines() if l.strip()]
@@ -344,8 +343,7 @@ class App:
         @HANDLER_ROUTINE
         def on_console_event(event: int) -> bool:
             if event in (CTRL_C_EVENT, CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT):
-                self.tray.stop()
-                self.window.destroy()
+                self.quit()  # same as the tray's Quit, so a downloaded update is still applied
                 return True
             return False
 

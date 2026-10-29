@@ -151,9 +151,14 @@ async def watch_session(
     ctx.verify_mode = ssl.CERT_NONE  # localhost self-signed cert only
 
     async def emit(data: dict | None, fn: Callable = callback) -> None:
-        res = fn(data)
-        if asyncio.iscoroutine(res):
-            await res
+        # a callback error is ours, not the connection's: log it and keep watching, without the
+        # reconnect (and the "client gone" events it sends) that would end a draft in progress
+        try:
+            res = fn(data)
+            if asyncio.iscoroutine(res):
+                await res
+        except Exception:
+            log.exception("lcu callback")
 
     async def emit_phase(phase: str) -> None:
         if on_phase:
@@ -198,15 +203,12 @@ async def watch_session(
                     await emit(None if body.get("eventType") == "Delete" else body.get("data"))
         except (OSError, LcuError, websockets.WebSocketException) as e:
             log.debug("lcu connection: %s", e)
-        except Exception:  # bad data or a callback error: log it and reconnect, never stop watching
+        except Exception:  # bad data: log it and reconnect, never stop watching
             log.exception("lcu watch")
         if connected:
             connected = False
-            try:
-                await emit_phase("None")
-                await emit(None)
-            except Exception:
-                log.exception("lcu watch")
+            await emit_phase("None")
+            await emit(None)
         await asyncio.sleep(delay)
         delay = min(delay * 2, max_backoff)
 

@@ -52,6 +52,7 @@ def fit_logistic(xs: list[float], ys: list[float]) -> tuple[float, float]:
 
 
 def log_loss(ps: list[float], ys: list[float]) -> float:
+    ps = [min(1 - 1e-9, max(1e-9, p)) for p in ps]  # a calibrated p can round to exactly 0 or 1
     return -sum(y * math.log(p) + (1 - y) * math.log(1 - p) for p, y in zip(ps, ys)) / len(ps)
 
 
@@ -149,7 +150,11 @@ def tune(samples: list[Sample], cfg: Config, passes: int = 3) -> dict:
     ys = [s.win for s in samples]
 
     def loss(weights: dict) -> float:
-        return log_loss([predict(t, weights) for t in totals(samples, cfg.k, weights)], ys)
+        # refit the calibration for each candidate: weights change the totals' scale, so a
+        # calibration fitted to other weights would score them unfairly
+        ts = totals(samples, cfg.k, weights)
+        a, b = fit_logistic(ts, ys)
+        return log_loss([predict(t, weights | {"cal_a": a, "cal_b": b}) for t in ts], ys)
 
     weights = DEFAULT_ODDS | cfg.odds
     best = loss(weights)
@@ -198,7 +203,7 @@ def main() -> None:
         w = tune(samples, cfg)
         if len(samples) < 50:
             print(f"\nwarning: {len(samples)} drafts is thin - tuned weights will overfit; keep them only if they hold on the next batch")
-        changed = {k: round(v, 3) for k, v in w.items() if v != DEFAULT_ODDS[k]}
+        changed = {k: round(v, 3) for k, v in w.items() if k not in ("cal_a", "cal_b") and v != DEFAULT_ODDS.get(k)}
         if not changed:
             print("\ntuning: the default weights are already the best found on these drafts")
         else:
@@ -206,7 +211,10 @@ def main() -> None:
             print("[odds]")
             for k, v in changed.items():
                 print(f"{k} = {v}  # {DEFAULT_ODDS[k]}")
-            report(w)
+            a, b = fit_logistic(totals(samples, cfg.k, w), [s.win for s in samples])
+            print(f"cal_a = {a:.4f}  # refit for these weights (replaces the one above)")
+            print(f"cal_b = {b:+.4f}")
+            report(w | {"cal_a": a, "cal_b": b})
 
 
 if __name__ == "__main__":

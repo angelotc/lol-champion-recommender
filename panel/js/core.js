@@ -34,7 +34,6 @@
   function renderTiers(s){
     var box=$("tiers");
     $("tiersBox").classList.toggle("hidden",!(s.tiers&&s.tiers.length));
-    if(pending&&pending===s.tier_id)pending=null;
     clear(box);
     (s.tiers||[]).forEach(function(t){
       var b=el("button",(pending||s.tier_id)===t.id?"on":null,t.label);
@@ -67,6 +66,7 @@
     var parts=[];
     if(s.role)parts.push(cap(s.role));if(s.days!=null&&s.days!=="")parts.push(s.days+"d");
     $("title").textContent=parts.length?parts.join(" · "):"LoL Companion";
+    pending=null;  // any new state answers a tier click (accepted or not)
     renderTiers(s);
     document.querySelectorAll("section.view").forEach(function(v){v.classList.toggle("hidden",v.dataset.view!==name)});
     renderTabs(s);

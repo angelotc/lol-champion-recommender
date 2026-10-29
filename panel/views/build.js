@@ -29,8 +29,12 @@
     });
     d.appendChild(its);
     var st=el("div","st");
-    st.appendChild(el("b",null,o.wr+"%"));
-    st.appendChild(document.createTextNode(" win · "+o.pr+"% picked · "+k(o.games)));
+    var w=el("span");w.appendChild(el("b",null,o.wr+"%"));w.appendChild(document.createTextNode(" win"));
+    st.appendChild(w);  // whole pieces wrap to a second line on wide rows instead of being cut off
+    [o.pr+"% picked",k(o.games)].forEach(function(t){
+      st.appendChild(document.createTextNode(" "));  // the break point, outside the nowrap pieces
+      st.appendChild(el("span",null,"· "+t));
+    });
     st.title=(o.parts||[]).map(function(p){return p.name}).join(" › ");
     d.appendChild(st);
     d.appendChild(mu(o));

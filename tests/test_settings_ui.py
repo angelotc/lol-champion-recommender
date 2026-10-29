@@ -95,7 +95,7 @@ def test_get_includes_the_version(tmp_path):
 def test_rejected_write_leaves_original_untouched(cfg_path, monkeypatch):
     before = cfg_path.read_text(encoding="utf-8")
     v = su.read_values(cfg_path) | {"top_n": 10}
-    def boom(path=None):
+    def boom(path=None, strict=False):
         raise ValueError("does not load")
     monkeypatch.setattr(su, "load_config", boom)
     with pytest.raises(ValueError):
