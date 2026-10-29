@@ -18,9 +18,7 @@ def cfg_path(tmp_path):
 
 def test_round_trip_keeps_comments(cfg_path):
     before = cfg_path.read_text(encoding="utf-8")
-    v = su.read_values(cfg_path) | {"top_n": 10, "min_pick_rate": 0.5, "comfort_only": True,
-                                    "show_ban_suggestions": True, "k": 800, "half_life": 30,
-                                    "min_games": 5, "comfort_weight": 1.5, "tentative_factor": 0.25}
+    v = su.read_values(cfg_path) | {"min_pick_rate": 0.5, "comfort_only": True, "comfort_weight": 1.5}
     assert su.save(v, cfg_path) == {}
     after = cfg_path.read_text(encoding="utf-8")
     for line in before.splitlines():
@@ -28,9 +26,8 @@ def test_round_trip_keeps_comments(cfg_path):
             assert line in after
     assert "Shrinkage constant" in after
     cfg = load_config(cfg_path)
-    assert (cfg.top_n, cfg.min_pick_rate, cfg.comfort_only, cfg.show_ban_suggestions) == (10, 0.5, True, True)
-    assert (cfg.k, cfg.tentative_factor) == (800, 0.25)
-    assert cfg.comfort == {"weight": 1.5, "half_life": 30, "min_games": 5}
+    assert (cfg.min_pick_rate, cfg.comfort_only) == (0.5, True)
+    assert cfg.comfort == {"weight": 1.5}
     assert su.read_values(cfg_path) == v
     assert cfg.lockfile == Config().lockfile  # literal string kept intact
 
@@ -54,9 +51,8 @@ def test_comfort_table_created_only_when_needed(cfg_path):
 
 
 @pytest.mark.parametrize("field,value", [
-    ("top_n", 2), ("top_n", 16), ("top_n", 7.5), ("min_pick_rate", 6), ("min_pick_rate", -1),
-    ("k", 10), ("tentative_factor", 1.5), ("comfort_weight", 3), ("half_life", 400),
-    ("min_games", 0), ("lockfile", "  "), ("comfort_only", 1), ("top_n", None), ("k", "abc"),
+    ("min_pick_rate", 6), ("min_pick_rate", -1), ("min_pick_rate", None), ("min_pick_rate", "abc"),
+    ("comfort_weight", 3), ("lockfile", "  "), ("comfort_only", 1),
 ])
 def test_validation_rejects(cfg_path, field, value):
     before = cfg_path.read_text(encoding="utf-8")
@@ -69,18 +65,24 @@ def test_validation_rejects(cfg_path, field, value):
 def test_defaults_match_config():
     d, c = su.defaults(), Config()
     assert su.validate(d) == {}
-    assert (d["top_n"], d["min_pick_rate"], d["k"], d["tentative_factor"], d["lockfile"]) == (
-        c.top_n, c.min_pick_rate, c.k, c.tentative_factor, c.lockfile)
-    assert (d["comfort_weight"], d["half_life"], d["min_games"]) == (
-        DEFAULT_COMFORT["weight"], DEFAULT_COMFORT["half_life"], DEFAULT_COMFORT["min_games"])
+    assert (d["min_pick_rate"], d["comfort_only"], d["lockfile"]) == (c.min_pick_rate, c.comfort_only, c.lockfile)
+    assert d["comfort_weight"] == DEFAULT_COMFORT["weight"]
+
+
+def test_options_not_in_the_window_survive_a_save(cfg_path):
+    cfg_path.write_text(cfg_path.read_text(encoding="utf-8").replace("top_n = 8", "top_n = 12")
+                        + "\n[comfort]\nhalf_life = 30\n", encoding="utf-8")
+    su.save(su.read_values(cfg_path) | {"comfort_only": True}, cfg_path)
+    cfg = load_config(cfg_path)
+    assert cfg.top_n == 12 and cfg.comfort["half_life"] == 30 and cfg.comfort_only
 
 
 def test_api_save_calls_back(cfg_path):
     got = []
     api = su.SettingsApi(cfg_path, got.append)
-    assert api.save(api.get()["values"] | {"top_n": 12}) == {"ok": True, "errors": {}}
-    assert got[0].top_n == 12
-    assert api.save(api.get()["values"] | {"top_n": 99})["ok"] is False and len(got) == 1
+    assert api.save(api.get()["values"] | {"min_pick_rate": 2.0}) == {"ok": True, "errors": {}}
+    assert got[0].min_pick_rate == 2.0
+    assert api.save(api.get()["values"] | {"min_pick_rate": 99})["ok"] is False and len(got) == 1
 
 
 def test_get_includes_the_version(tmp_path):
@@ -94,7 +96,7 @@ def test_get_includes_the_version(tmp_path):
 
 def test_rejected_write_leaves_original_untouched(cfg_path, monkeypatch):
     before = cfg_path.read_text(encoding="utf-8")
-    v = su.read_values(cfg_path) | {"top_n": 10}
+    v = su.read_values(cfg_path) | {"min_pick_rate": 2.0}
     def boom(path=None, strict=False):
         raise ValueError("does not load")
     monkeypatch.setattr(su, "load_config", boom)

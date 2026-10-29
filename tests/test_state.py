@@ -119,20 +119,9 @@ class StubBanRec(StubRec):
         return BanEvaluation(draft, draft.my_position, [412], [Threat(555, "bottom", 0.3, 10.0, 1.0, [])])
 
 
-def test_ban_phase_shows_no_recommendations_by_default():
-    pushed = []
-    ctl = Controller(Config(), pushed.append)
-    ctl.rec = StubBanRec()
-    ctl.on_phase("ChampSelect")
-    ctl.on_session(session(ban_in_progress=True))
-    assert pushed[-1]["view"] == "status" and "recs" not in pushed[-1] and "threats" not in pushed[-1]
-    ctl.on_session(session())  # picks start
-    assert pushed[-1]["view"] == "picks"
-
-
 def test_ban_phase_shows_bans_then_your_tab_choice():
     pushed = []
-    ctl = Controller(Config(show_ban_suggestions=True), pushed.append)
+    ctl = Controller(Config(), pushed.append)
     ctl.rec = StubBanRec()
     ctl.on_phase("ChampSelect")
     ctl.on_session(session(ban_in_progress=True))

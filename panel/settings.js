@@ -1,34 +1,24 @@
 /* Settings form: Python (settings_ui.SettingsApi) owns the values and validation. */
 (function(){
   var $=function(id){return document.getElementById(id)};
-  var NUM=["top_n","min_pick_rate","half_life","min_games","k","tentative_factor"];
-  var BOOL=["show_ban_suggestions","comfort_only"];
-  var api=null, lastWeight=1;
+  var NUM=["min_pick_rate"];
+  var BOOL=["comfort_only"];
+  var weight=1;  /* record-and-mastery weight to save when the switch is on (config.toml can tune it) */
 
   function call(name){
     var a=window.pywebview&&window.pywebview.api, args=[].slice.call(arguments,1);
     return a&&a[name]?a[name].apply(a,args):Promise.reject(new Error("not running in the app"));
   }
   function status(msg,bad){var s=$("status");s.textContent=msg||"";s.className=bad?"bad":""}
-  function showWeight(){
-    var on=$("use_comfort").checked;
-    $("weightRow").classList.toggle("off",!on);
-    $("weightOut").textContent=Number($("comfort_weight").value).toFixed(1);
-  }
   function fill(v){
     NUM.forEach(function(k){$(k).value=v[k]});
     BOOL.forEach(function(k){$(k).checked=!!v[k]});
     $("lockfile").value=v.lockfile;
     var w=Number(v.comfort_weight);
     $("use_comfort").checked=w>0;
-    if(w>0)lastWeight=w;
-    else lastWeight=recalled()||lastWeight;
-    $("comfort_weight").value=w>0?w:lastWeight;
-    showWeight();
+    if(w>0)weight=w;
     clearErrors();
   }
-  function remember(w){try{localStorage.setItem("lastComfortWeight",w)}catch(e){}}
-  function recalled(){try{return Number(localStorage.getItem("lastComfortWeight"))||0}catch(e){return 0}}
   function clearErrors(){
     document.querySelectorAll(".f").forEach(function(f){f.classList.remove("bad");f.querySelector(".err").textContent=""});
   }
@@ -37,8 +27,7 @@
     NUM.forEach(function(k){var t=$(k).value.trim();v[k]=t===""?null:Number(t)});
     BOOL.forEach(function(k){v[k]=$(k).checked});
     v.lockfile=$("lockfile").value;
-    v.comfort_weight=$("use_comfort").checked?Number($("comfort_weight").value):0;
-    remember(Number($("comfort_weight").value));  /* kept even when disabled (sent as 0) */
+    v.comfort_weight=$("use_comfort").checked?weight:0;
     return v;
   }
   function showErrors(errs){
@@ -53,8 +42,6 @@
     if(open)$("adv").open=true;
   }
 
-  $("use_comfort").addEventListener("change",showWeight);
-  $("comfort_weight").addEventListener("input",function(){lastWeight=Number(this.value);remember(lastWeight);showWeight()});
   $("save").addEventListener("click",function(){
     status("");
     call("save",collect()).then(function(r){

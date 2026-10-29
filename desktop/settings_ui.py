@@ -1,7 +1,7 @@
 """Settings window backend: read the form values, validate, and save to config.toml (comments kept).
 
-Rank tier is not here: it lives on the panel's pill. Everything else in config.toml (weights, odds,
-days, ...) is left untouched by a save.
+Only the few settings a player is likely to change are here. Rank tier lives on the panel's pill;
+everything else in config.toml (top_n, k, weights, odds, days, ...) is left untouched by a save.
 """
 from __future__ import annotations
 
@@ -15,38 +15,24 @@ from config import DEFAULT_COMFORT, Config, load_config
 
 # form field -> (config.toml table or None for top-level, key)
 FIELDS = {
-    "top_n": (None, "top_n"),
     "min_pick_rate": (None, "min_pick_rate"),
-    "show_ban_suggestions": (None, "show_ban_suggestions"),
     "comfort_only": (None, "comfort_only"),
-    "comfort_weight": ("comfort", "weight"),
-    "half_life": ("comfort", "half_life"),
-    "min_games": ("comfort", "min_games"),
-    "k": (None, "k"),
-    "tentative_factor": (None, "tentative_factor"),
+    "comfort_weight": ("comfort", "weight"),  # the form's on/off: 0 = off, else the weight in use
     "lockfile": (None, "lockfile"),
 }
-BOOLS = {"show_ban_suggestions", "comfort_only"}
-INTS = {"top_n", "half_life", "min_games"}
+BOOLS = {"comfort_only"}
 # field -> (min, max, label for the error message)
 RANGES = {
-    "top_n": (3, 15, "Picks to show"),
     "min_pick_rate": (0, 5, "Minimum pick rate"),
     "comfort_weight": (0, 2, "Record and mastery weight"),
-    "half_life": (0, 365, "Older games count less after"),
-    "min_games": (1, 10, "Games before my record counts"),
-    "k": (50, 2000, "k"),
-    "tentative_factor": (0, 1, "tentative_factor"),
 }
 
 
 def defaults() -> dict:
     d, c = Config(), DEFAULT_COMFORT
     return {
-        "top_n": d.top_n, "min_pick_rate": d.min_pick_rate,
-        "show_ban_suggestions": d.show_ban_suggestions, "comfort_only": d.comfort_only,
-        "comfort_weight": c["weight"], "half_life": c["half_life"], "min_games": c["min_games"],
-        "k": d.k, "tentative_factor": d.tentative_factor, "lockfile": d.lockfile,
+        "min_pick_rate": d.min_pick_rate, "comfort_only": d.comfort_only,
+        "comfort_weight": c["weight"], "lockfile": d.lockfile,
     }
 
 
@@ -54,11 +40,8 @@ def read_values(path: Path | str | None = None) -> dict:
     cfg = load_config(path)
     comfort = DEFAULT_COMFORT | cfg.comfort
     return {
-        "top_n": cfg.top_n, "min_pick_rate": cfg.min_pick_rate,
-        "show_ban_suggestions": cfg.show_ban_suggestions, "comfort_only": cfg.comfort_only,
-        "comfort_weight": comfort["weight"], "half_life": comfort["half_life"],
-        "min_games": comfort["min_games"],
-        "k": cfg.k, "tentative_factor": cfg.tentative_factor, "lockfile": cfg.lockfile,
+        "min_pick_rate": cfg.min_pick_rate, "comfort_only": cfg.comfort_only,
+        "comfort_weight": comfort["weight"], "lockfile": cfg.lockfile,
     }
 
 
@@ -79,19 +62,15 @@ def validate(values: dict) -> dict[str, str]:
                 errors[name] = "Enter a number."
             elif not lo <= v <= hi:
                 errors[name] = f"Must be between {lo} and {hi}."
-            elif name in INTS and v != int(v):
-                errors[name] = "Must be a whole number."
     return errors
 
 
 def _clean(name: str, v):
-    if name in INTS:
-        return int(v)
     if name in BOOLS:
         return v
     if name == "lockfile":
         return v.strip()
-    return float(v) if name != "k" or v != int(v) else int(v)
+    return float(v)
 
 
 def _string(s: str):

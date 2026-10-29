@@ -14,8 +14,6 @@ k = 500
 # Multiplier applied to synergy with allies that are only hovering
 tentative_factor = 0.5
 top_n = 8
-# Ban phase: no recommendations unless this is on (then: ban suggestions vs your likely picks)
-show_ban_suggestions = false
 # In-game panel size. It already grows with the game's resolution; raise this to make it bigger.
 ingame_scale = 1.0
 lockfile = 'C:\Riot Games\League of Legends\lockfile'

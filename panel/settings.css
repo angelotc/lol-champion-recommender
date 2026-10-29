@@ -20,16 +20,13 @@ summary::before{content:"\25B8  "}details[open] summary::before{content:"\25BE  
 .f .err:empty{display:none}
 .f.bad input[type=number],.f.bad input[type=text]{border-color:var(--neg)}
 .f.wide{grid-template-columns:1fr}.f.wide input{margin-top:5px;width:100%}
-.f .slide{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-top:6px}
-.f .slide.off{display:none}
-.slide input{flex:1;accent-color:var(--gold)}
-output{min-width:2.5em;text-align:right;color:var(--gold)}
 input[type=number],input[type=text]{background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:3px;
   color:var(--gold2);font:inherit;padding:4px 8px;width:96px;text-align:right;user-select:text}
 input[type=text]{text-align:left;font-size:12px}
 input:focus{outline:none;border-color:var(--gold)}
 .f label{grid-row:1}.f input:not(.sw){grid-row:1/3;grid-column:2}
 .f .hint{grid-row:2}
+.f.wide input:not(.sw){grid-row:2;grid-column:1}.f.wide .hint{grid-row:3}  /* full width, under the label */
 .sw{appearance:none;-webkit-appearance:none;grid-row:1/3;grid-column:2;width:38px;height:20px;border-radius:10px;
   background:var(--line2);position:relative;cursor:pointer;transition:background .15s}
 .sw::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--gold2);transition:left .15s}

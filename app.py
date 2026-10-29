@@ -120,7 +120,7 @@ class App:
                                           self.ctl.reload_config, self.version_text)
             win = webview.create_window(
                 SETTINGS_TITLE, url=str(RESOURCES / "panel" / "settings.html"), js_api=api,
-                width=480, height=680, min_size=(420, 480), resizable=True, background_color="#010a13",
+                width=480, height=480, min_size=(420, 360), resizable=True, background_color="#010a13",
             )
             api.window = win
             win.events.closed += lambda: setattr(self, "settings_window", None)

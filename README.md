@@ -29,7 +29,7 @@ on Start with Windows, and quits.
 | Bans | Picks |
 |---|---|
 | <img src="docs/views/bans.png" width="280"> | <img src="docs/views/picks.png" width="280"> |
-| Ban suggestions (optional). | Draft win estimate, then ranked picks. |
+| Ban suggestions vs your likely picks. | Draft win estimate, then ranked picks. |
 
 | Build (after lock-in) | In game |
 |---|---|
@@ -46,12 +46,11 @@ on Start with Windows, and quits.
 - **In game** needs borderless or windowed mode. Clicks pass through it, so each enemy's share of an item's Δ is shown inline.
 
 ## Settings
-Tray → Settings (or the gear in the panel header). Saved changes apply immediately, except the lockfile path. They live in `config.toml` (installed copy in `%LOCALAPPDATA%\league-analysis\`), which also holds what the window doesn't cover:
+Tray → Settings (or the gear in the panel header). Saved changes apply immediately. They live in `config.toml` (installed copy in `%LOCALAPPDATA%\league-analysis\`), which also holds what the window doesn't cover:
 
 | Key | Default | |
 |---|---|---|
 | `min_pick_rate` | 1.0 | Min pick rate % to be a candidate. Lower for off-meta picks. |
-| `show_ban_suggestions` | false | Show bans during the ban phase. |
 | `comfort_only` | false | Only recommend champions you've played. |
 | `[comfort]` | | `weight` (0 = off), `k`, `history`, `half_life`, `min_games`, `mastery`, `mastery_cap` |
 | `[weights.<role>]` | | Per-role lane weights. |
