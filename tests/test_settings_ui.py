@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-import settings_ui as su
+from desktop import settings_ui as su
 from config import DEFAULT_COMFORT, Config, load_config
 
 SHIPPED = Path(__file__).resolve().parent.parent / "config.toml"
@@ -86,7 +86,7 @@ def test_api_save_calls_back(cfg_path):
 def test_get_includes_the_version(tmp_path):
     import shutil
     from pathlib import Path
-    from settings_ui import SettingsApi
+    from desktop.settings_ui import SettingsApi
     cfg = tmp_path / "config.toml"
     shutil.copy(Path(__file__).parent.parent / "config.toml", cfg)
     assert SettingsApi(cfg, version=lambda: "Version 0.1.4").get()["version"] == "Version 0.1.4"

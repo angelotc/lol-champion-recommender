@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from paths import config_path
-from scoring import LANES
+from draft.scoring import LANES
 
 log = logging.getLogger("config")
 

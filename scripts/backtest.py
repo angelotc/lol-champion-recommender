@@ -21,9 +21,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import Config, load_config
 from data.store import Store
-from engine import Recommender
-from lcu import parse_session
-from scoring import LANES, ChampStats, DEFAULT_ODDS, assign_enemy_lanes, draft_odds
+from draft.engine import Recommender
+from data.lcu import parse_session
+from draft.scoring import LANES, ChampStats, DEFAULT_ODDS, assign_enemy_lanes, draft_odds
 
 
 def sigmoid(x: float) -> float:

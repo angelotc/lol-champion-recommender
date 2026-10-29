@@ -19,7 +19,7 @@ import httpx
 import paths
 from data.cache import JsonCache
 from data.fetch import Fetcher
-from scoring import LANES, ChampStats, Pair
+from draft.scoring import LANES, ChampStats, Pair
 
 BASE = "https://a1.lolalytics.com/mega/"
 SITE = "https://lolalytics.com/lol"

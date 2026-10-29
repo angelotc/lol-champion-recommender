@@ -1,9 +1,9 @@
 import pytest
 
-import views
+from draft import views
 from data.champions import Champions
-from engine import Evaluation
-from lcu import DraftState
+from draft.engine import Evaluation
+from data.lcu import DraftState
 
 DATA = {"data": {
     n: {"key": str(k), "id": n, "name": n, "image": {"full": f"{n}.png"}, "info": {"attack": a, "magic": m}}

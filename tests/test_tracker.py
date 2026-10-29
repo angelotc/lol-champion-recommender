@@ -1,5 +1,5 @@
-import tracker
-from tracker import Rect
+from desktop import tracker
+from desktop.tracker import Rect
 
 
 def test_ingame_panel_grows_with_the_game_resolution():

@@ -11,16 +11,16 @@ import threading
 import time
 from typing import Callable
 
-import views
+from draft import views
 from config import Config
 from data import lcu_data
 from data.live import LiveClient, LiveGame
 from data.store import Store
-from engine import BuildEvaluation, Evaluation, Recommender
+from draft.engine import BuildEvaluation, Evaluation, Recommender
 from paths import DATA_DIR
-from lcu import LcuClient
-from scoring import LANES, Comfort, DraftOdds, draft_odds
-from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Event, Session, Stage
+from data.lcu import LcuClient
+from draft.scoring import LANES, Comfort, DraftOdds, draft_odds
+from draft.state import DRAFT_STAGES, PRE_DRAFT_STAGES, Event, Session, Stage
 
 SETTINGS = DATA_DIR / "settings.json"
 SYNC_EVERY = 20.0  # seconds; history/mastery sync is cheap but not free

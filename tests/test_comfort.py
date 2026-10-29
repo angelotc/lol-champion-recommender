@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config import Config
 from data import lcu_data
 from data.store import Store
-from scoring import ChampStats, Comfort, comfort_terms, recommend
+from draft.scoring import ChampStats, Comfort, comfort_terms, recommend
 
 W = {"weight": 1.0, "k": 20, "history": 0.5, "mastery": 0.15, "mastery_cap": 1.0}
 

@@ -20,11 +20,11 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from config import load_config  # noqa: E402
-from controller import Controller  # noqa: E402
+from draft.controller import Controller  # noqa: E402
 from data.live import LiveGame  # noqa: E402
-from lcu import DraftState, Slot  # noqa: E402
+from data.lcu import DraftState, Slot  # noqa: E402
 from render_panel import render  # noqa: E402
-from state import Stage  # noqa: E402
+from draft.state import Stage  # noqa: E402
 
 ROLE = "support"
 ALLIES = [("ksante", "top", True), ("leesin", "jungle", False), ("ahri", "middle", False), ("jinx", "bottom", False)]

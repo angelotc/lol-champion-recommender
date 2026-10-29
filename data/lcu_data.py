@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass
 
 from data.store import Store
-from lcu import LcuClient
+from data.lcu import LcuClient
 
 log = logging.getLogger(__name__)
 RANKED_QUEUES = {420, 440}  # solo/duo, flex

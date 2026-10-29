@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import httpx
 import pytest
 
-import lcu
+from data import lcu
 from data import fetch as fetch_mod
 from data.champions import Champions
 from data.fetch import Fetcher

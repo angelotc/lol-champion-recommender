@@ -10,10 +10,10 @@ from data import builds
 from data.champions import Champions
 from data.ddragon import Assets
 from config import Config
-from lcu import DraftState
+from data.lcu import DraftState
 from data.fetch import Fetcher
 from data.lolalytics import Lolalytics
-from scoring import (
+from draft.scoring import (
     LANES, ChampStats, Comfort, Recommendation, Threat, assign_enemy_lanes, ban_threats, infer_enemy_lanes, recommend,
 )
 

@@ -10,7 +10,7 @@ import pystray
 from PIL import Image
 
 import paths
-import updater as upd
+from desktop import updater as upd
 
 NAME = "LoL Companion"
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"

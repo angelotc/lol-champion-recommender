@@ -4,14 +4,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import views
+from draft import views
 from config import Config
-from controller import Controller
+from draft.controller import Controller
 from data.builds import Build, Option
 from data.ddragon import Assets, Item
 from data.live import parse
-from engine import BuildEvaluation
-from state import Stage
+from draft.engine import BuildEvaluation
+from draft.state import Stage
 
 LIVE = json.loads((Path(__file__).parent / "fixtures" / "live.json").read_text())
 

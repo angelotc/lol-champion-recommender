@@ -22,17 +22,17 @@ from pathlib import Path
 
 import webview
 
-import settings_ui
-import tracker
-import updater
+from desktop import settings_ui
+from desktop import tracker
+from desktop import updater
 from config import load_config
-from controller import Controller
+from draft.controller import Controller
 from data.store import Store
-from lcu import DraftState, LcuClient, Slot, read_lockfile, watch_session
+from data.lcu import DraftState, LcuClient, Slot, read_lockfile, watch_session
 from paths import DATA_DIR, RESOURCES, config_path
-from scoring import LANES
-from state import DRAFT_STAGES, PRE_DRAFT_STAGES, Stage
-from tray import Tray
+from draft.scoring import LANES
+from draft.state import DRAFT_STAGES, PRE_DRAFT_STAGES, Stage
+from desktop.tray import Tray
 
 TITLE = "LoL Companion"
 SETTINGS_TITLE = "LoL Companion — Settings"

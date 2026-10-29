@@ -6,8 +6,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from lcu import DraftState, parse_session
-from scoring import ChampStats, Pair, assign_enemy_lanes, infer_enemy_lanes, recommend, shrink
+from data.lcu import DraftState, parse_session
+from draft.scoring import ChampStats, Pair, assign_enemy_lanes, infer_enemy_lanes, recommend, shrink
 
 W = {"base": 1.0, "enemy": {"support": 1.0, "bottom": 1.0}, "ally": {"bottom": 1.0}}
 
@@ -126,7 +126,7 @@ def test_weights_override_merges():
 
 
 def test_role_comes_from_assignment_only():
-    from engine import Recommender
+    from draft.engine import Recommender
 
     assert Recommender.role_for(DraftState(my_position="middle")) == "middle"
     assert Recommender.role_for(DraftState(my_position="")) is None
@@ -156,7 +156,7 @@ def test_manual_enemy_lane_ignores_stale_and_bad_entries():
 
 
 def test_ban_threats_weigh_likelihood_and_harm():
-    from scoring import ban_threats
+    from draft.scoring import ban_threats
     w = {"enemy": {"support": 1.0, "bottom": 1.0, "top": 0.3}}
     leona = ChampStats(1, "support", 50.0, 10000, matchups={
         "support": {10: Pair(46.0, 2000, -4.0), 11: Pair(46.0, 2000, -4.0)},
@@ -176,7 +176,7 @@ def test_ban_threats_weigh_likelihood_and_harm():
 
 
 def test_draft_odds_sums_both_sides():
-    from scoring import draft_odds
+    from draft.scoring import draft_odds
     k = 500
     # our bot laner is strong and beats their bot laner (measured from both sides)
     ours = ChampStats(1, "bottom", 53.0, 10**6, avg_wr=50.0, matchups={"bottom": {2: Pair(55.0, 10**6, 2.0)}})
@@ -190,7 +190,7 @@ def test_draft_odds_sums_both_sides():
 
 
 def test_draft_odds_hovers_count_half_and_clamp():
-    from scoring import draft_odds
+    from draft.scoring import draft_odds
     strong = ChampStats(1, "top", 70.0, 10**6, avg_wr=50.0)
     assert draft_odds({"top": (strong, True)}, {}, 500).win == pytest.approx(55.0, abs=0.01)
     assert draft_odds({"top": (strong, False)}, {}, 500, {"strength": 5.0}).win == 75.0
@@ -198,7 +198,7 @@ def test_draft_odds_hovers_count_half_and_clamp():
 
 
 def test_draft_odds_calibration_replaces_the_clamp():
-    from scoring import draft_odds, sigmoid
+    from draft.scoring import draft_odds, sigmoid
     strong = ChampStats(1, "top", 70.0, 10**6, avg_wr=50.0)
     w = {"cal_a": 0.1, "cal_b": -0.2}
     assert draft_odds({"top": (strong, False)}, {}, 500, w).win == pytest.approx(100 * sigmoid(0.8), abs=0.05)

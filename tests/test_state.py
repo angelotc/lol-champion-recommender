@@ -6,11 +6,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import Config
-from controller import Controller
+from draft.controller import Controller
 from data.store import Store
-from engine import Evaluation
-from scoring import Recommendation
-from state import Event, Session, Stage, in_ban_phase
+from draft.engine import Evaluation
+from draft.scoring import Recommendation
+from draft.state import Event, Session, Stage, in_ban_phase
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "session.json").read_text())
 
@@ -114,8 +114,8 @@ def test_controller_status_views():
 
 class StubBanRec(StubRec):
     def bans(self, draft, pickable=None):
-        from engine import BanEvaluation
-        from scoring import Threat
+        from draft.engine import BanEvaluation
+        from draft.scoring import Threat
         return BanEvaluation(draft, draft.my_position, [412], [Threat(555, "bottom", 0.3, 10.0, 1.0, [])])
 
 
@@ -154,7 +154,7 @@ def test_preload_runs_once_per_role(monkeypatch):
     ctl.rec = Rec()
     ctl.lobby_roles = lambda: ["support", "bottom"]
     started = []
-    monkeypatch.setattr("controller.threading.Thread", lambda target, args, **kw: started.append((target, args)) or type("T", (), {"start": lambda self: target(*args)})())
+    monkeypatch.setattr("draft.controller.threading.Thread", lambda target, args, **kw: started.append((target, args)) or type("T", (), {"start": lambda self: target(*args)})())
     ctl.on_phase("Lobby")
     ctl.on_phase("Matchmaking")  # same roles: nothing new to load
     assert loaded == ["support", "bottom"] and len(started) == 1
@@ -210,7 +210,7 @@ def test_preload_when_idle_uses_your_usual_roles(tmp_path, monkeypatch):
         def pool(self, role, progress=None, tier=None): loaded.append(role)
     ctl.rec = Rec()
     ctl.lobby_roles = lambda: []  # not in a lobby
-    monkeypatch.setattr("controller.threading.Thread", lambda target, args, **kw: type("T", (), {"start": lambda self: target(*args)})())
+    monkeypatch.setattr("draft.controller.threading.Thread", lambda target, args, **kw: type("T", (), {"start": lambda self: target(*args)})())
     ctl.on_phase("None")
     assert loaded == ["support", "bottom"]
     ctl.on_phase("Lobby")  # lobby roles empty, nothing new

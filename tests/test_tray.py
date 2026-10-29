@@ -2,7 +2,7 @@ import winreg
 
 import pytest
 
-import tray
+from desktop import tray
 
 TEST_VALUE = "LoLCompanionTest"
 

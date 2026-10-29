@@ -118,9 +118,10 @@ update feed) plus the portable zip.
 
 | Path | |
 |---|---|
-| `app.py`, `tray.py`, `updater.py` | Window, hotkeys, tray icon, auto-updates |
-| `controller.py`, `state.py` | Client updates → panel views; draft stage |
-| `engine.py`, `scoring.py` | Candidates and scores |
-| `data/` | lolalytics, Data Dragon, fetcher/cache, `store.py` (SQLite of drafts and games) |
+| `app.py` | Entry point: window, hotkeys, draft sources |
+| `config.py`, `paths.py` | Settings (`config.toml`) and file locations |
+| `draft/` | `controller.py` + `state.py` (client updates → panel views), `engine.py` + `scoring.py` (candidates and scores), `views.py` (panel payloads) |
+| `desktop/` | Tray icon, auto-updates, settings window, placing the panel beside the client |
+| `data/` | League client (`lcu.py`), lolalytics, Data Dragon, fetcher/cache, `store.py` (SQLite of drafts and games) |
 | `panel/` | The panel UI (`index.html?demo` runs in a browser) |
 | `scripts/` | `simulate_views.py` (README screenshots), `render_panel.py`, `make_icon.py` |

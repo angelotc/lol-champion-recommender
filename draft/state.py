@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from enum import Enum
 
-from lcu import DraftState, parse_session
+from data.lcu import DraftState, parse_session
 
 
 class Stage(str, Enum):

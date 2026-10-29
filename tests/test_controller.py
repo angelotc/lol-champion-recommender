@@ -4,10 +4,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import Config
-from controller import Controller
+from draft.controller import Controller
 from data.store import Store
-from scoring import DraftOdds, OddsTerm
-from state import Event
+from draft.scoring import DraftOdds, OddsTerm
+from draft.state import Event
 
 
 def controller(tmp_path, pushed):

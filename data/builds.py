@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from scoring import shrink
+from draft.scoring import shrink
 
 SECTIONS = ("spells", "start", "boots", "core", "item1", "item2", "item3", "item4", "item5", "skills", "skill_order")
 MIN_SHARE = 1.0  # % pick rate below which options are hidden (noise, trolls)

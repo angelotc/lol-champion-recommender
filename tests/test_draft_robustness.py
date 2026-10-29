@@ -10,13 +10,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pytest
 
-import controller as controller_mod
-import lcu
+from draft import controller as controller_mod
+from data import lcu
 from config import Config, load_config
-from controller import Controller
-from engine import Recommender
-from lcu import DraftState, Slot
-from scoring import ChampStats
+from draft.controller import Controller
+from draft.engine import Recommender
+from data.lcu import DraftState, Slot
+from draft.scoring import ChampStats
 
 
 def stats(cid, wr=50.0):
