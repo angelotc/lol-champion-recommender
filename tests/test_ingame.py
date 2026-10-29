@@ -93,3 +93,22 @@ def test_ingame_panel_only_when_toggled():
     ctl.ingame_shown = True
     ctl.render()
     assert pushed[-1]["message"] == "Waiting for game data..."
+
+
+def test_ingame_slot_follows_items_bought_not_top_option():
+    # Knight's Vow (3109) bought 3rd also tops the 4th-item list; the 4th slot must still show
+    b = Build(44, "support", 51.0, 10000, {}, {}, {
+        "core": [Option("3869_3047_3190", 51, 10, 1000)],
+        "item3": [Option("3050", 57, 15, 1500), Option("3109", 58, 14, 1400)],
+        "item4": [Option("3109", 62, 20, 400), Option("3050", 61, 19, 390)],
+        "item5": [Option("3050", 60, 10, 100)],
+    })
+    g = parse(LIVE)
+    g.items = [3869, 3047, 3190, 3109, 3070]  # 3070: a component, not a finished item
+    a = assets()
+    a.items[3050] = Item(3050, "i3050", "", 2200, [], {}, [], "")
+    a.items[3070] = Item(3070, "i3070", "", 400, [], {}, [3004], "")
+    out = views.ingame(views.header("support", "master_plus", 14), g, BuildEvaluation(44, "support", b, {}), Champs(), a)
+    assert [s["title"] for s in out["sections"]] == ["4th item", "5th item"]
+    fourth = out["sections"][0]
+    assert [o["parts"][0]["id"] for o in fourth["options"]] == [3050]  # Knight's Vow dropped: you own it

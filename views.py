@@ -198,6 +198,18 @@ def _owned(iid: int, items: set[int], assets: Assets) -> bool:
     return False
 
 
+def _extra_items(items: set[int], core: list[int], assets: Assets) -> int:
+    """How many finished items you hold outside the core path (not boots, support item, components,
+    trinkets or wards)."""
+    n = 0
+    for iid in items:
+        it = assets.items.get(iid)
+        if iid in core or iid in SUPPORT_ITEMS or not it or it.into or it.gold < 1000 or "Boots" in it.tags:
+            continue
+        n += 1
+    return n
+
+
 def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Champions, assets: Assets) -> dict:
     """In-game: the build worked out before the game (your champion vs the lanes), with what you
     already own. Uses only your own items and gold; never the enemies' items."""
@@ -242,10 +254,13 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
             row["yours"] = all(p["owned"] for p in row["parts"])
             rows.append(row)
         sections.append({"title": "Boots", "options": rows})
-    for key, title in (("item3", "3rd item"), ("item4", "4th item"), ("item5", "5th item")):
+    # each finished item you hold beyond the core fills the next slot (3rd, then 4th...), whatever it
+    # is: with Knight's Vow bought 3rd, the 4th slot still shows even though Knight's Vow tops it
+    done = _extra_items(owned, core.ids if core else [], assets)
+    for n, (key, title) in enumerate((("item3", "3rd item"), ("item4", "4th item"), ("item5", "5th item"))):
+        if n < done:
+            continue
         opts = b.sections.get(key) or []
-        if opts and all(_owned(i, owned, assets) for i in opts[0].ids):
-            continue  # the top option is already bought (_owned also matches another boot/support tier)
         # leave out options you already own (bought for another slot)
         opts = [o for o in opts if not all(_owned(i, owned, assets) for i in o.ids)]
         if opts:
