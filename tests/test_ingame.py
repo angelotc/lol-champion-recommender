@@ -57,15 +57,12 @@ def test_ingame_ticks_owned_items_and_next_cost():
     assert not boots[0]["yours"] and not boots[0]["parts"][0]["owned"]  # you hold 3047, not 3111
 
 
-def test_ingame_boots_mark_the_pair_you_hold():
+def test_ingame_boots_hidden_once_you_hold_a_pair():
     b = Build(44, "support", 51.0, 10000, {}, {}, {
         "boots": [Option(str(i), 50, 10, 1000) for i in (3111, 3190, 3109, 3865)] + [Option("3047", 49, 2, 100)],
     })
     out = views.ingame(views.header("support", "master_plus", 14), parse(LIVE), BuildEvaluation(44, "support", b, {}), Champs(), assets())
-    boots = out["sections"][0]["options"]
-    # top 3, plus the pair you hold even when it ranks lower
-    assert [o["parts"][0]["id"] for o in boots] == [3111, 3190, 3109, 3047]
-    assert [o["yours"] for o in boots] == [False, False, False, True]
+    assert out["sections"] == []  # you hold 3047, one of the options
 
 
 def test_ingame_core_follows_what_you_bought():
@@ -110,11 +107,9 @@ def test_ingame_slot_follows_items_bought_not_top_option():
     a.items[3050] = Item(3050, "i3050", "", 2200, [], {}, [], "")
     a.items[3070] = Item(3070, "i3070", "", 400, [], {}, [3004], "")
     out = views.ingame(views.header("support", "master_plus", 14), g, BuildEvaluation(44, "support", b, {}), Champs(), a)
-    # the filled 3rd slot stays, with Knight's Vow marked as yours; the 4th is next
-    assert [(x["title"], x["state"]) for x in out["sections"]] == [("3rd item", "done"), ("4th item", "next"), ("5th item", "")]
-    third, fourth = out["sections"][0], out["sections"][1]
-    assert [(o["parts"][0]["id"], o["yours"]) for o in third["options"]] == [(3050, False), (3109, True)]
-    assert [o["parts"][0]["id"] for o in fourth["options"]] == [3050]  # Knight's Vow dropped: you own it
+    # the filled 3rd slot is hidden; the 4th is next
+    assert [(x["title"], x["state"]) for x in out["sections"]] == [("4th item", "next"), ("5th item", "")]
+    assert [o["parts"][0]["id"] for o in out["sections"][0]["options"]] == [3050]  # Knight's Vow dropped: you own it
 
 
 def test_ingame_no_item_slot_is_next_while_buying_the_core():
@@ -127,10 +122,11 @@ def test_ingame_no_item_slot_is_next_while_buying_the_core():
     assert [x["state"] for x in out["sections"] if x["title"] == "3rd item"] == [""]
 
 
-def test_ingame_your_item_shows_even_when_it_ranks_low():
+def test_ingame_filled_slot_hidden_even_when_your_item_ranks_low():
     b = Build(44, "support", 51.0, 10000, {}, {}, {
         "core": [Option("3869_3047_3190", 51, 10, 1000)],
         "item3": [Option(str(i), 55, 10, 1000) for i in (3050, 3107, 3222, 3109)],
+        "item4": [Option("3050", 55, 10, 1000)],
     })
     g = parse(LIVE)
     g.items = [3869, 3047, 3190, 3109]
@@ -138,6 +134,13 @@ def test_ingame_your_item_shows_even_when_it_ranks_low():
     for iid in (3050, 3107, 3222):
         a.items[iid] = Item(iid, f"i{iid}", "", 2200, [], {}, [], "")
     out = views.ingame(views.header("support", "master_plus", 14), g, BuildEvaluation(44, "support", b, {}), Champs(), a)
-    third = out["sections"][0]
-    assert [o["parts"][0]["id"] for o in third["options"]] == [3050, 3107, 3222, 3109]
-    assert [o["yours"] for o in third["options"]] == [False, False, False, True]
+    assert [x["title"] for x in out["sections"]] == ["4th item"]
+
+
+def test_damage_split_sums_enemy_team():
+    bev = BuildEvaluation(44, "support", None, {"bottom": 1, "middle": 2},
+                          {1: {"physical": 9000, "magic": 0, "true": 1000}, 2: {"physical": 0, "magic": 10000, "true": 0}})
+    d = views.damage_split(bev, Champs())
+    assert (d["physical"], d["magic"], d["true"]) == (45, 50, 5)
+    assert [(e["name"], e["lane"], e["physical"]) for e in d["enemies"]] == [("c1", "bottom", 90), ("c2", "middle", 0)]
+    assert views.damage_split(BuildEvaluation(44, "support", None, {}), Champs()) is None

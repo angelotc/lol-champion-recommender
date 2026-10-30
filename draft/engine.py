@@ -17,6 +17,7 @@ from draft.scoring import (
     LANES, ChampStats, Comfort, Recommendation, Threat, assign_enemy_lanes, ban_threats, infer_enemy_lanes, recommend,
 )
 
+DAMAGE_TYPES = ("physical", "magic", "true")
 log = logging.getLogger(__name__)
 
 
@@ -35,6 +36,8 @@ class BuildEvaluation:
     role: str
     build: builds.Build | None
     opponents: dict[str, int]  # lane -> enemy champion the matchup deltas are measured against
+    # enemy champion -> its average damage to champions per game in its lane: physical/magic/true
+    damage: dict[int, dict[str, float]] = field(default_factory=dict)
 
 
 @dataclass
@@ -248,4 +251,20 @@ class Recommender:
                 if vs:
                     builds.add_matchup(base, vs, opponents[lane], lane, weights[lane], self.cfg.build_k,
                                        self.cfg.build_min_games)
-        return BuildEvaluation(champion_id, role, base, opponents)
+        return BuildEvaluation(champion_id, role, base, opponents, self.enemy_damage(enemies))
+
+    def enemy_damage(self, enemies: dict[str, int]) -> dict[int, dict[str, float]]:
+        """Each enemy's average damage split (lolalytics build header) in its lane."""
+        jobs = {cid: self.lola.fetch.submit(self.lola.build_full, self.champs.slug(cid), lane)
+                for lane, cid in enemies.items() if lane in LANES}
+        out = {}
+        for cid, job in jobs.items():
+            try:
+                dmg = ((job.result() or {}).get("header") or {}).get("damage") or {}
+            except Exception:
+                log.exception("damage split for %s", cid)
+                continue
+            split = {t: float(dmg.get(t) or 0) for t in DAMAGE_TYPES}
+            if sum(split.values()) > 0:
+                out[cid] = split
+        return out

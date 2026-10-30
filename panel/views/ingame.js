@@ -23,6 +23,7 @@
     h.appendChild(t);
     if(s.keystone){var ks=icon(s.keystone.name,s.keystone.icon,"igk");ks.title=s.keystone.name;h.appendChild(ks)}
     box.appendChild(h);
+    if(s.damage)box.appendChild(L.damage(s.damage));
     function keyHint(){var k=el("div","ig-key");k.innerHTML="<b>Ctrl+X</b> show/hide";box.appendChild(k)}
     if(s.empty){box.appendChild(el("div","bnote",s.empty));keyHint();return}
 

@@ -42,8 +42,9 @@ on Start with Windows, and quits.
 - **Rank tier** (pill at the top): Master+, GM+ or Challenger. Higher tiers have fewer games.
 - **Enemy lanes** are guessed from play rates; flex picks get a gold dot. Click an enemy to set their lane.
 - **Build:** each option shows its Δ: how much better it does against these enemies than usual, in win-rate points, discounted for small samples. Bot lane is measured vs the enemy duo, top/mid vs their laner, jungler (and mid vs the roaming support), jungle vs everyone. The best is tagged **BEST VS LANE**. Hover for each enemy's share.
+- **Their damage** (build view and in game): the enemy team's split of physical, magic and true damage, from each enemy's average damage to champions in its lane. Hover for each enemy's own split.
 - **Picks tab after lock-in** shows the recommendations as they were when you locked in.
-- **In game** shows each item's win rate and its Δ vs each enemy, one column per lane (enemy icons on top). Needs borderless or windowed mode. It never takes focus from the game: hover an item or row for details, Ctrl+X hides it.
+- **In game** shows each item's win rate and its Δ vs each enemy, one column per lane (enemy icons on top). Needs borderless or windowed mode. Boots and item slots you've already filled are hidden. It never takes focus from the game: hover an item or row for details, Ctrl+X hides it.
 
 ## Settings
 Tray → Settings (or the gear in the panel header). Saved changes apply immediately. They live in `config.toml` (installed copy in `%LOCALAPPDATA%\league-analysis\`), which also holds what the window doesn't cover:

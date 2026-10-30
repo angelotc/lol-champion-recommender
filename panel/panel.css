@@ -233,3 +233,12 @@ body[data-mode=ingame] .hdr,body[data-mode=ingame] .tiers,body[data-mode=ingame]
 body.overlay .odds .why{display:none}
 /* view router */
 .view{flex:1;min-height:0;display:flex;flex-direction:column}
+/* enemy team damage split (build view and in game) */
+.tdmg{margin-top:.25rem;flex:none}
+.tdmg-t{display:flex;align-items:baseline;gap:.375rem;font-size:.625rem;color:var(--muted)}
+.tdmg-t b{font-weight:600}
+.tdmg-t .d-ad{color:#e8834a}.tdmg-bar .d-ad{background:#e8834a}
+.tdmg-t .d-ap{color:#5ea8f0}.tdmg-bar .d-ap{background:#5ea8f0}
+.tdmg-t .d-tr{color:var(--gold2)}.tdmg-bar .d-tr{background:#d8d8d8}
+.tdmg-bar{display:flex;height:4px;border-radius:2px;overflow:hidden;background:var(--line);margin-top:2px}
+.tdmg-bar span{display:block;height:100%}

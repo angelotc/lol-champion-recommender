@@ -176,6 +176,7 @@ def build(head: dict, bev: BuildEvaluation, champs: Champions, assets: Assets, t
     return out | {
         "games": b.games, "wr": round(b.wr, 1), "lane": bev.role,
         "opponents": [champ(e) | {"lane": l, "games": g, "wr": round(w, 1)} for e, l, g, w in b.vs],
+        "damage": damage_split(bev, champs),
         "pages": pages,
         "keystones": [rune(o.key) for o in keystones[:3]],
         "spells": [option(o, assets.summoner, best_spell) for o in spells[:3]],
@@ -209,6 +210,21 @@ def _extra_items(items: set[int], core: list[int], assets: Assets) -> list[int]:
     return out
 
 
+def damage_split(bev: BuildEvaluation | None, champs: Champions) -> dict | None:
+    """The enemy team's damage as % physical/magic/true (each champion's average damage to
+    champions in its lane, summed), plus each enemy's own split."""
+    dmg = bev.damage if bev else {}
+    if not dmg:
+        return None
+    pct = lambda d: {t: round(100 * v / (sum(d.values()) or 1)) for t, v in d.items()}
+    total = {t: sum(d.get(t, 0) for d in dmg.values()) for t in ("physical", "magic", "true")}
+    lanes = {cid: lane for lane, cid in bev.opponents.items()}
+    return pct(total) | {"enemies": [
+        {"name": champs.name(cid), "icon": champs.icon_url(cid), "lane": lanes.get(cid, "")} | pct(d)
+        for cid, d in sorted(dmg.items(), key=lambda kv: -sum(kv[1].values()))
+    ]}
+
+
 def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Champions, assets: Assets) -> dict:
     """In-game: the build worked out before the game (your champion vs the lanes), with what you
     already own. Uses only your own items and gold; never the enemies' items."""
@@ -240,10 +256,9 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
     path = [item(i) for i in core.ids] if core else []
     nxt = next((p for p in path if not p["owned"]), None)
     sections = []
-    # boots stay all game (like the build view in champ select), so you can see what your pair adds
-    # next to the others; only the exact pair you hold is marked as yours
+    # boots: hidden once you hold a finished pair from the options
     boots = b.sections.get("boots") or []
-    if boots:
+    if boots and not any(all(i in owned for i in o.ids) for o in boots):
         shown = boots[:3] + [o for o in boots[3:] if owned & set(o.ids)][:1]
         rows = []
         for o in shown:
@@ -255,25 +270,17 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
         sections.append({"title": "Boots", "options": rows})
     # each finished item you hold beyond the core fills the next slot (3rd, then 4th...), whatever it
     # is: with Knight's Vow bought 3rd, the 4th slot is the next one even though Knight's Vow tops it.
-    # Filled slots stay (dimmed) with the item you put there marked as yours; once the core is done,
-    # the first open slot is highlighted as the one you're buying next.
+    # Filled slots are hidden; once the core is done, the first open slot is highlighted as the one
+    # you're buying next.
     extras = _extra_items(owned, core.ids if core else [], assets)
     unplaced = list(extras)
     next_marked = nxt is not None  # still buying the core: no item slot is next yet
     for n, (key, title) in enumerate((("item3", "3rd item"), ("item4", "4th item"), ("item5", "5th item"))):
         opts = b.sections.get(key) or []
-        if n < len(extras):
+        if n < len(extras):  # slot filled: hide it
             mine = next((o for o in opts if any(i in unplaced for i in o.ids)), None)
-            rows = opts[:3] + ([mine] if mine and mine not in opts[:3] else [])
-            out_rows = []
-            for o in rows:
-                row = opt(o)
-                row["yours"] = o is mine
-                out_rows.append(row)
             if mine:
                 unplaced = [i for i in unplaced if i not in mine.ids]
-            if out_rows:
-                sections.append({"title": title, "options": out_rows, "state": "done"})
             continue
         # leave out options you already own (bought for another slot)
         opts = [o for o in opts if not all(_owned(i, owned, assets) for i in o.ids)]
@@ -285,6 +292,7 @@ def ingame(head: dict, live: LiveGame, bev: BuildEvaluation | None, champs: Cham
     page = b.pages.get("pick")
     return out | {
         "opponents": [champ(e) | {"lane": l} for e, l, _, _ in b.vs],
+        "damage": damage_split(bev, champs),
         "core": path,
         "next": nxt,
         "sections": sections,

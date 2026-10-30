@@ -89,7 +89,9 @@
       s.opponents.forEach(function(o){var i=icon(o.name,o.icon);i.title=o.name+": "+k(o.games)+" games";vs.appendChild(i);
         vs.appendChild(el("span",null,k(o.games)))});
     }else vs.appendChild(el("span",null,"Δ shows once your lane opponent locks in"));
-    t.appendChild(vs);head.appendChild(t);
+    t.appendChild(vs);
+    if(s.damage)t.appendChild(L.damage(s.damage));
+    head.appendChild(t);
     if(s.empty){body.appendChild(el("div","bnote",s.empty));return}
 
     var rs=section("Runes","Δ = edge vs this lane");

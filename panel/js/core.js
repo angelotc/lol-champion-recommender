@@ -98,6 +98,26 @@
   $("gear").addEventListener("click",function(){api("open_settings")});
   $("hide").addEventListener("click",function(){api("hide")});
 
-  window.LPH={$:$,el:el,lane:lane,icon:icon,fmt:fmt,cls:cls,clear:clear,short:short,cap:cap,api:api,register:register,
+  /* The enemy team's damage split: a stacked bar (physical / magic / true) with the % as text;
+     hover for each enemy's own split. */
+  function damage(d){
+    var box=el("div","tdmg");
+    var bar=el("div","tdmg-bar");
+    [["physical","d-ad"],["magic","d-ap"],["true","d-tr"]].forEach(function(t){
+      if(d[t[0]]>0){var seg=el("span",t[1]);seg.style.width=d[t[0]]+"%";bar.appendChild(seg)}
+    });
+    var txt=el("div","tdmg-t");
+    txt.appendChild(el("span",null,"Their damage"));
+    txt.appendChild(el("b","d-ad",d.physical+"% AD"));
+    txt.appendChild(el("b","d-ap",d.magic+"% AP"));
+    if(d["true"]>=3)txt.appendChild(el("b","d-tr",d["true"]+"% true"));
+    box.appendChild(txt);box.appendChild(bar);
+    box.title=(d.enemies||[]).map(function(e){
+      return e.name+": "+e.physical+"% AD, "+e.magic+"% AP"+(e["true"]?", "+e["true"]+"% true":"");
+    }).join("\n");
+    return box;
+  }
+
+  window.LPH={$:$,el:el,damage:damage,lane:lane,icon:icon,fmt:fmt,cls:cls,clear:clear,short:short,cap:cap,api:api,register:register,
     LANE_ORDER:["top","jungle","middle","bottom","support"]};
 })();
