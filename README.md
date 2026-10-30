@@ -57,6 +57,7 @@ Tray → Settings (or the gear in the panel header). Saved changes apply immedia
 | `[build_weights.<role>]` | | Which enemies build Δs are measured against, and their weights. |
 | `build_min_games` | 50 | Ignore an enemy's Δ for an option below this many games. |
 | `[odds]` | | Draft win estimate weights. |
+| `record_games` | false | Save the raw in-game data every `record_every` (15) seconds to `recordings\` in the data folder, one `.jsonl` file per game. Research only; nothing changes on screen. |
 
 ## How picks are scored
 One score per candidate, in win-rate points:

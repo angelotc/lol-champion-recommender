@@ -68,6 +68,8 @@ class Config:
     comfort: dict = field(default_factory=dict)  # overrides for DEFAULT_COMFORT, all roles
     comfort_only: bool = False  # only recommend champions you've played or have mastery on
     odds: dict = field(default_factory=dict)  # draft win estimate weights, see scoring.DEFAULT_ODDS
+    record_games: bool = False  # save raw in-game data to recordings/ (for research; nothing shown)
+    record_every: float = 15.0  # seconds between saved snapshots
 
     def weights_for(self, role: str) -> dict:
         w = default_weights(role)

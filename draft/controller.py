@@ -14,7 +14,7 @@ from typing import Callable
 from draft import views
 from config import Config
 from data import lcu_data
-from data.live import LiveClient, LiveGame
+from data.live import GameRecorder, LiveClient, LiveGame, parse as parse_live
 from data.store import Store
 from draft.engine import BuildEvaluation, Evaluation, Recommender
 from paths import DATA_DIR
@@ -72,6 +72,7 @@ class Controller:
         self.live: LiveGame | None = None
         self.last_role: str = ""           # role from your last draft (games without positions)
         self._live_client: LiveClient | None = None
+        self._recorder = GameRecorder(DATA_DIR / "recordings", cfg.record_every)
 
     # -- setup ------------------------------------------------------------
     def boot(self) -> None:
@@ -407,11 +408,14 @@ class Controller:
             except Exception:
                 log.exception("in-game panel")
 
-    def poll_live(self) -> bool:
-        """Read the game's local data once; re-render if your state changed. True if a game is up."""
-        if self._live_client is None:
-            self._live_client = LiveClient()
-        g = self._live_client.game()
+    def poll_live(self, data: dict | None = None) -> bool:
+        """Read the game's local data once (or use `data` already read); re-render if your state
+        changed. True if a game is up."""
+        if data is None:
+            if self._live_client is None:
+                self._live_client = LiveClient()
+            data = self._live_client.raw()
+        g = parse_live(data) if data else None
         changed = g != self.live
         self.live = g
         if changed:
@@ -419,13 +423,26 @@ class Controller:
         return g is not None
 
     def live_loop(self) -> None:
-        """Background: keep game data fresh while the in-game panel is shown."""
+        """Background: keep game data fresh while the in-game panel is shown, and save snapshots
+        when `record_games` is on (even with the panel hidden)."""
         while True:
-            if self.ingame_shown and self.session.stage == Stage.INGAME:
-                try:
-                    self.poll_live()
-                except Exception:
-                    log.exception("live poll")
+            try:
+                in_game = self.session.stage == Stage.INGAME
+                recording = in_game and self.cfg.record_games
+                if not in_game:
+                    self._recorder.end()
+                data = None
+                if recording and self._recorder.due():
+                    if self._live_client is None:
+                        self._live_client = LiveClient()
+                    data = self._live_client.raw()
+                    if data:
+                        self._recorder.every = self.cfg.record_every
+                        self._recorder.save(data)
+                if self.ingame_shown and in_game:
+                    self.poll_live(data)
+            except Exception:
+                log.exception("live poll")
             time.sleep(LIVE_POLL)
 
     # -- panel actions ----------------------------------------------------
