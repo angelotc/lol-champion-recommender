@@ -1,4 +1,4 @@
-/* Ban phase: enemy champions worth banning against your likely picks. */
+/* Ban phase: enemy champions worth banning against your likely picks and your team's hovers. */
 (function(L){
   var $=L.$,el=L.el,lane=L.lane,icon=L.icon,fmt=L.fmt,cls=L.cls,clear=L.clear,short=L.short;
   var openSet={};
@@ -46,6 +46,11 @@
     if(s.picks&&s.picks.length){
       vs.appendChild(el("span",null,"Measured against your likely picks:"));
       s.picks.forEach(function(p){var i=icon(p.name,p.icon);i.title=p.name;vs.appendChild(i)});
+    }
+    var team=(s.allies||[]).filter(function(a){return !a.is_me});
+    if(team.length){
+      vs.appendChild(el("span",null,(s.picks&&s.picks.length?" and":"Measured against")+" your team's hovers:"));
+      team.forEach(function(p){var i=icon(p.name,p.icon);i.title=p.name+(p.lane?" ("+p.lane+")":"");vs.appendChild(i)});
     }
     var box=$("threats"),keep=box.scrollTop;clear(box);
     (s.threats||[]).forEach(function(t,i){

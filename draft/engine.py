@@ -216,8 +216,13 @@ class Recommender:
         exclude = draft.bans | draft.picked | mine | {r.champion_id for r in ev.recs[:3]}
         rows = {lane: self.lola.tier_list(lane) for lane in LANES}
         known = set(self.champs.all_ids())
+        hovering = {s.champion_id for s in draft.allies if s.champion_id and not s.is_me}
+        allies = [
+            (st, self.cfg.weights_for(lane)) for cid, lane in ev.lanes.items()
+            if cid in hovering and lane in LANES and (st := self.lane_stats(cid, lane))
+        ]
         threats = [
-            t for t in ban_threats(picks, rows, self.cfg.weights_for(role), self.cfg.k, exclude)
+            t for t in ban_threats(picks, rows, self.cfg.weights_for(role), self.cfg.k, exclude, allies=allies)
             if t.champion_id in known
         ]
         return BanEvaluation(draft, role, [p.champion_id for p in picks], threats[: self.cfg.ban_count])

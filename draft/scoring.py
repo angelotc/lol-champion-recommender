@@ -247,13 +247,18 @@ def ban_threats(
     k: float,
     exclude: set[int] = frozenset(),
     min_pick_rate: float = 0.5,
+    allies: list[tuple[ChampStats, dict]] = (),
 ) -> list[Threat]:
-    """Rank enemy champions worth banning, given the picks you're likely to make.
+    """Rank enemy champions worth banning, given the picks you're likely to make and the champions
+    your teammates are hovering.
 
     enemy_rows: lane -> {champion id: tier list row with pr (%), games and avgWrDelta} for lanes the
     enemy can play. For each lane a champion plays, its threat is pick rate (how likely you face it)
     times the lane-weighted harm it does: how much worse your picks do against it (matchup deltas,
-    shrunk), plus how strong it is on its own. A champion's lanes are summed.
+    shrunk, averaged: you play one of them), plus how much worse each teammate's hover does against
+    it (summed: they all play, each weighted by that teammate's own lane weights), plus how strong
+    it is on its own. A champion's lanes are summed.
+    allies: (teammate's hovered champion in their lane, weights_for(their lane)).
     """
     threats: dict[int, Threat] = {}
     best: dict[int, float] = {}
@@ -273,6 +278,15 @@ def ban_threats(
                 delta = pair.wr - s.wr if pair.delta is None else pair.delta
                 against.append(Contribution("vs", s.champion_id, lane, delta, pair.games, shrink(delta, pair.games, k) * lw))
             harm = -sum(c.weighted for c in against) / len(picks) if picks else 0.0
+            for a, aw in allies:
+                pair = a.matchups.get(lane, {}).get(cid)
+                alw = aw.get("enemy", {}).get(lane, 0)
+                if pair is None or alw <= 0:
+                    continue
+                delta = pair.wr - a.wr if pair.delta is None else pair.delta
+                c = Contribution("vs", a.champion_id, lane, delta, pair.games, shrink(delta, pair.games, k) * alw)
+                against.append(c)
+                harm -= c.weighted
             strength = shrink(float(row.get("avgWrDelta") or 0), int(row.get("games") or 0), k)
             lane_score = pr / 100 * (harm + strength * lw)
             t = threats.get(cid)

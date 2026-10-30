@@ -29,7 +29,7 @@ on Start with Windows, and quits.
 | Bans | Picks |
 |---|---|
 | <img src="docs/views/bans.png" width="280"> | <img src="docs/views/picks.png" width="280"> |
-| Ban suggestions vs your likely picks. | Draft win estimate, then ranked picks. |
+| Ban suggestions vs your likely picks and your team's hovers. | Draft win estimate, then ranked picks. |
 
 | Build (after lock-in) | In game |
 |---|---|
@@ -84,7 +84,7 @@ your games are weighted 0.5^(age / half_life), half_life = 90 days
 | `w_enemy` | 1.0 | 1.0 | 0.5 | 0.3 |
 | `w_ally` | – | 1.0 | 0.5 | 0.3 |
 
-- **Ban threat** = `pick_rate × (harm to your picks + strength × w_enemy)`, summed over lanes.
+- **Ban threat** = `pick_rate × (harm to your picks + harm to each teammate's hover + strength × w_enemy)`, summed over lanes. Harm to your picks is averaged (you play one); each hover counts in full, with that teammate's own lane weights.
 - **Build Δ** = `shrink((wr_option_vs − wr_vs) − (wr_option − wr), games, 300)`, hidden under 100 games.
 - **Draft win estimate**: champion strength (half weight) + cross-team matchups (1.0 same lane, 0.7
   bot duos, 0.35 other) + synergy (half weight), capped 25–75%. Calibrate it on your own drafts with

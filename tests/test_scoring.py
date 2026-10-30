@@ -203,3 +203,20 @@ def test_draft_odds_calibration_replaces_the_clamp():
     w = {"cal_a": 0.1, "cal_b": -0.2}
     assert draft_odds({"top": (strong, False)}, {}, 500, w).win == pytest.approx(100 * sigmoid(0.8), abs=0.05)
     assert draft_odds({}, {}, 500, w).win == pytest.approx(100 * sigmoid(-0.2))  # empty draft ~ its own prior
+
+
+def test_ban_threats_count_teammate_hovers():
+    from draft.scoring import ban_threats
+    w = {"enemy": {"support": 1.0, "top": 0.3}}
+    leona = ChampStats(1, "support", 50.0, 10000, matchups={"support": {10: Pair(50.0, 2000, 0.0)}})
+    # your teammate hovers a top laner that champion 30 counters hard
+    darius = ChampStats(2, "top", 50.0, 10000, matchups={"top": {30: Pair(44.0, 3000, -6.0)}})
+    top_w = {"enemy": {"top": 1.0}}
+    rows = {
+        "support": {10: {"pr": 10, "games": 5000, "avgWrDelta": 0.5}},
+        "top": {30: {"pr": 10, "games": 5000, "avgWrDelta": 0}},
+    }
+    assert ban_threats([leona], rows, w, k=500)[0].champion_id == 10
+    t = ban_threats([leona], rows, w, k=500, allies=[(darius, top_w)])
+    assert t[0].champion_id == 30
+    assert [c.champion_id for c in t[0].against] == [2]
