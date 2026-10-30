@@ -200,11 +200,12 @@ body[data-mode=ingame] .hdr,body[data-mode=ingame] .tiers,body[data-mode=ingame]
 .ig-next span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ig-next b{color:var(--gold2);flex:none}
 .ig-opt{display:flex;align-items:center;gap:.25rem;margin-bottom:2px}
-.ig-wr{display:flex;flex-direction:column;font-size:.6875rem;line-height:1.1;color:var(--muted);flex:1;min-width:2.25rem;white-space:nowrap}
-.ig-pr{font-size:.625rem;color:var(--dim)}
-.ig-vs{display:flex;align-items:center;gap:2px;flex:0 1 auto;min-width:0;overflow:hidden;font-size:.6875rem}
-.ig-vs .ico{width:.9375rem;height:.9375rem;border-radius:2px;border:0;margin-left:2px}
+.ig-wr{display:flex;flex-direction:column;font-size:.6875rem;line-height:1.1;color:var(--gold2);font-weight:700;flex:1;min-width:2.25rem;white-space:nowrap}
+.ig-vs{display:grid;align-items:center;justify-items:end;flex:none;font-size:.6875rem}
+.ig-vs .ico{width:.9375rem;height:.9375rem;border-radius:2px;border:0}
 .ig-vs b{font-weight:600}
+.ig-lh{display:flex;align-items:flex-end;gap:.25rem;margin-bottom:.125rem}
+.ig-lh .ig-l{flex:1;margin-bottom:0}
 .ig-mu{font-size:.75rem;font-weight:700;flex:none;min-width:2rem;text-align:right}
 .ig-opt.yours{background:rgba(255,255,255,.05);border-radius:3px}
 .ig-sec.done .ig-opt:not(.yours){opacity:.4}  /* a slot you've filled: your item stands out */

@@ -42,7 +42,7 @@ def main() -> None:
     ctl = Controller(load_config(), states.append)
     ctl.boot()
     ids = lambda *names: [ctl.rec.champs.id_from_slug(n) for n in names]
-    shots: dict[str, tuple[dict, list[str], int, str]] = {}
+    shots: dict[str, tuple] = {}  # state, clicks, height, mode[, hover selector]
 
     # ban phase
     allies = [Slot(c, lane, tent, False) for c, (_, lane, tent) in zip(ids(*(a[0] for a in ALLIES)), ALLIES)]
@@ -72,18 +72,18 @@ def main() -> None:
     ctl.render()
     shots["build"] = (states[-1], [], 1600, "")
 
-    # in game (Ctrl+X): Leona at level 9 with support item and boots
+    # in game (Ctrl+X): Leona at level 13 with boots, Knight's Vow and Locket; hovering a matchup cell
     ctl.session.draft = ctl.session.frozen = None
     ctl.session.phase, ctl.ingame_shown = "InProgress", True
     enemies = dict(zip(["bottom", "support", "middle", "jungle"], ["Caitlyn", "Nautilus", "Hwei", "Viego"]))
-    ctl.live = LiveGame("Leona", ROLE, 9, 1320, [3869, 3047, 2055], 1095, {}, enemies)
+    ctl.live = LiveGame("Leona", ROLE, 13, 400, [3158, 3109, 3190], 1500, {}, enemies)
     ctl.render()
-    shots["ingame"] = (states[-1], [], 806, "ingame")
+    shots["ingame"] = (states[-1], [], 806, "ingame", ".ig-opt.yours .ig-vs b[title]")
 
-    for name, (state, clicks, height, mode) in shots.items():
+    for name, (state, clicks, height, mode, *hover) in shots.items():
         width = 333 if mode == "ingame" else 300
         scale = 1.333 if mode == "ingame" else 1.0
-        path = render(out_dir / f"{name}.png", state, None, clicks, width, height, scale, mode)
+        path = render(out_dir / f"{name}.png", state, None, clicks, width, height, scale, mode, hover[0] if hover else None)
         print(name, state.get("view"), path)
 
 

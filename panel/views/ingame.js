@@ -39,24 +39,37 @@
       }
       box.appendChild(c);
     }
+    var LANES=["top","jungle","middle","bottom","support"];
+    var cols=(s.opponents||[]).slice().sort(function(a,b){return LANES.indexOf(a.lane)-LANES.indexOf(b.lane)});
+    var grid="repeat("+cols.length+",1.75rem)";
     (s.sections||[]).forEach(function(sec){
       var b=el("div","ig-sec"+(sec.state?" "+sec.state:""));
-      b.appendChild(el("div","ig-l",sec.title+(sec.state==="next"?" · next":"")));
+      var lh=el("div","ig-lh");
+      lh.appendChild(el("div","ig-l",sec.title+(sec.state==="next"?" · next":"")));
+      var any=sec.options.some(function(o){return (o.vs||[]).length});
+      if(cols.length&&any){
+        var hc=el("span","ig-vs");hc.style.gridTemplateColumns=grid;
+        cols.forEach(function(c){var ci=icon(c.name,c.icon);ci.title="vs "+c.name+" ("+c.lane+")";hc.appendChild(ci)});
+        lh.appendChild(hc);lh.appendChild(el("span","ig-mu"));
+      }
+      b.appendChild(lh);
       sec.options.forEach(function(o){
         var r=el("div","ig-opt"+(o.yours?" yours":""));
         r.title=(o.parts||[]).map(function(p){return p.name}).join(" + ")+" · "+o.wr+"% win · "+o.pr+"% picked"
           +(o.games?" · "+k(o.games)+" games":"");
         (o.parts||[]).forEach(function(p){r.appendChild(itemIcon(p))});
-        var wr=el("span","ig-wr");  // win rate over pick rate, so enemy deltas can't push the pick rate out
-        wr.appendChild(el("span",null,o.wr+"%"));wr.appendChild(el("span","ig-pr",o.pr+"%"));
+        var wr=el("span","ig-wr");
+        wr.appendChild(el("span",null,o.wr+"%"));
         r.appendChild(wr);
         if(o.yours)r.appendChild(el("span","ig-tag","YOURS"));
         var m=Number(o.matchup)||0;
-        if((o.vs||[]).length>1||(o.vs||[]).length===1&&Math.abs(m)>=SIG){
-          var parts=el("span","ig-vs");
-          o.vs.forEach(function(v){
-            var vi=icon(v.name,v.icon);vi.title=v.name+" ("+v.lane+"): "+fmt(v.weighted)+" of this option's edge";
-            parts.appendChild(vi);parts.appendChild(el("b",cls(v.weighted),fmt(v.weighted)));
+        if(cols.length&&any){  // one fixed column per enemy lane, so each enemy's deltas line up
+          var parts=el("span","ig-vs");parts.style.gridTemplateColumns=grid;
+          cols.forEach(function(c){
+            var v=(o.vs||[]).filter(function(x){return x.lane===c.lane})[0];
+            var d=el("b",v?cls(v.weighted):"",v?fmt(v.weighted):"");
+            if(v)d.title=v.name+" ("+v.lane+"): "+fmt(v.weighted)+" of this option's edge";
+            parts.appendChild(d);
           });
           r.appendChild(parts);
         }
